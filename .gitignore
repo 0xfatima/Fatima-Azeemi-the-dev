@@ -1,0 +1,8 @@
+node_modules
+.next
+.env.local
+.env*.local
+data/portfolio.json
+data/*.tmp
+public/uploads/*
+!public/uploads/.gitkeep

@@ -1,0 +1,1689 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>0xfatima | Portfolio & Management Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#121212',
+                            surface: '#18181b',
+                            card: '#202024',
+                            border: '#2e2e33',
+                            text: '#f3f4f6',
+                            muted: '#a1a1aa'
+                        },
+                        cream: {
+                            bg: '#fbf9f5',
+                            surface: '#f3efe6',
+                            card: '#e8e3d8',
+                            border: '#d9d2c5',
+                            text: '#27272a',
+                            muted: '#71717a'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        heading: ['Space Grotesk', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(150, 150, 150, 0.3);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(150, 150, 150, 0.5);
+        }
+
+        .dark body {
+            background-color: #121212;
+            color: #f3f4f6;
+        }
+        body {
+            background-color: #fbf9f5;
+            color: #27272a;
+            transition: background-color 0.4s ease, color 0.4s ease;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphism utility */
+        .glass-panel {
+            background: rgba(24, 24, 27, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .light .glass-panel {
+            background: rgba(245, 242, 235, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        /* Continuous Horizontal Infinite Marquee */
+        @keyframes marquee {
+            0% { transform: translateX(0%); }
+            100% { transform: translateX(-50%); }
+        }
+        @keyframes marquee-reverse {
+            0% { transform: translateX(-50%); }
+            100% { transform: translateX(0%); }
+        }
+        .animate-marquee {
+            display: flex;
+            width: 200%;
+            animation: marquee 25s linear infinite;
+        }
+        .animate-marquee:hover {
+            animation-play-state: paused;
+        }
+        .animate-marquee-reverse {
+            display: flex;
+            width: 200%;
+            animation: marquee-reverse 28s linear infinite;
+        }
+        .animate-marquee-reverse:hover {
+            animation-play-state: paused;
+        }
+
+        /* Geometric Floating Interactive Elements */
+        .geo-shape {
+            position: absolute;
+            pointer-events: auto;
+            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+            z-index: 1;
+            opacity: 0.35;
+        }
+        .geo-shape:hover {
+            transform: scale(1.25) rotate(25deg) translateY(-12px) !important;
+            opacity: 0.85;
+        }
+
+        /* Hero Double Exposure Shadow Effect */
+        .hero-shadow-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        .hero-shadow-img-back {
+            position: absolute;
+            top: 0;
+            left: 20px;
+            opacity: 0.35;
+            filter: grayscale(100%) contrast(120%) blur(1px);
+            transform: scale(1.05) translateX(-25px);
+            mix-blend-mode: screen;
+            transition: all 0.5s ease;
+        }
+        .light .hero-shadow-img-back {
+            mix-blend-mode: multiply;
+            opacity: 0.25;
+        }
+        .hero-shadow-img-front {
+            position: relative;
+            z-index: 2;
+            filter: grayscale(100%) contrast(110%);
+            transition: all 0.5s ease;
+        }
+
+        /* Opening Splash Screen Transition */
+        #splash-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #121212;
+            transition: opacity 0.8s cubic-bezier(0.77, 0, 0.175, 1), visibility 0.8s;
+        }
+        .light #splash-screen {
+            background-color: #fbf9f5;
+        }
+        #splash-logo {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 800;
+            font-size: clamp(3rem, 8vw, 6.5rem);
+            letter-spacing: -0.04em;
+            transition: all 1.1s cubic-bezier(0.85, 0, 0.15, 1);
+            transform-origin: center center;
+        }
+
+        /* Staircase Step layout styling */
+        .step-item {
+            position: relative;
+            transition: transform 0.3s ease;
+        }
+        .step-item:hover {
+            transform: translateY(-4px);
+        }
+    </style>
+</head>
+<body class="selection:bg-neutral-700 selection:text-cream-bg dark:selection:bg-neutral-300 dark:selection:text-dark-bg">
+
+    <!-- Splash Screen Transition -->
+    <div id="splash-screen">
+        <span id="splash-logo" class="text-dark-text dark:text-dark-text light:text-cream-text">0xfatima</span>
+    </div>
+
+    <!-- Floating Interactive Background Geometrical Shapes -->
+    <div id="geo-container" class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <!-- Generated JS shapes injected here -->
+    </div>
+
+    <!-- Admin Status Banner -->
+    <div id="admin-live-bar" class="hidden fixed bottom-4 right-4 z-50 glass-panel px-4 py-2.5 rounded-full border border-amber-500/40 shadow-2xl flex items-center gap-3">
+        <span class="flex h-2.5 w-2.5 relative">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+        </span>
+        <span class="text-xs font-mono font-medium text-amber-500">Admin Mode Active</span>
+        <button onclick="openAdminPortal()" class="px-3 py-1 bg-amber-500 text-stone-950 font-semibold rounded-full text-[11px] hover:bg-amber-400 transition-colors">
+            Manage Database
+        </button>
+        <button onclick="logoutAdmin()" class="text-xs text-stone-400 hover:text-stone-200 transition-colors">
+            Exit
+        </button>
+    </div>
+
+    <!-- Fixed Navigation Bar -->
+    <header class="fixed top-0 left-0 w-full z-40 px-4 sm:px-8 py-4">
+        <nav class="max-w-7xl mx-auto glass-panel rounded-full px-5 py-3 flex items-center justify-between shadow-lg">
+            <!-- Brand Logo Target for Splash Animation -->
+            <a href="#hero" class="flex items-center gap-2 group">
+                <span id="nav-brand-target" class="font-heading font-bold text-xl tracking-tight text-cream-text dark:text-dark-text opacity-0 transition-opacity duration-500">
+                    0xfatima
+                </span>
+            </a>
+
+            <!-- Navigation Links -->
+            <div class="hidden lg:flex items-center space-x-6 text-xs font-medium uppercase tracking-wider text-cream-muted dark:text-dark-muted">
+                <a href="#hero" class="hover:text-cream-text dark:hover:text-dark-text transition-colors">About</a>
+                <a href="#skills" class="hover:text-cream-text dark:hover:text-dark-text transition-colors">Skills</a>
+                <a href="#projects" class="hover:text-cream-text dark:hover:text-dark-text transition-colors">Projects</a>
+                <a href="#experience" class="hover:text-cream-text dark:hover:text-dark-text transition-colors">Experience</a>
+                <a href="#education" class="hover:text-cream-text dark:hover:text-dark-text transition-colors">Education</a>
+                <a href="#courses" class="hover:text-cream-text dark:hover:text-dark-text transition-colors">Courses</a>
+            </div>
+
+            <!-- Right Actions & Theme Toggle -->
+            <div class="flex items-center gap-3">
+                <!-- Theme Switch Button -->
+                <button id="theme-toggle" aria-label="Toggle Theme" class="p-2 rounded-full border border-cream-border dark:border-dark-border hover:bg-cream-surface dark:hover:bg-dark-surface transition-all">
+                    <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i>
+                    <i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i>
+                </button>
+
+                <!-- Links Dropdown Menu -->
+                <div class="relative group">
+                    <button id="quick-links-btn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-cream-border dark:border-dark-border hover:bg-cream-surface dark:hover:bg-dark-surface transition-all">
+                        <span>Links</span>
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <!-- Dropdown content -->
+                    <div class="absolute right-0 mt-2 w-52 glass-panel rounded-2xl shadow-xl py-2 hidden group-hover:block group-focus-within:block transition-all z-50">
+                        <a href="#" onclick="openModal('Curriculum Vitae', 'https://example.com/resume.pdf'); return false;" class="flex items-center gap-2.5 px-4 py-2 text-xs hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
+                            <i data-lucide="file-text" class="w-4 h-4"></i> Curriculum Vitae
+                        </a>
+                        <a href="https://github.com" target="_blank" rel="noopener" class="flex items-center gap-2.5 px-4 py-2 text-xs hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
+                            <i data-lucide="github" class="w-4 h-4"></i> GitHub Account
+                        </a>
+                        <a href="https://scholar.google.com" target="_blank" rel="noopener" class="flex items-center gap-2.5 px-4 py-2 text-xs hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
+                            <i data-lucide="book-open" class="w-4 h-4"></i> Publications
+                        </a>
+                        <a href="https://medium.com" target="_blank" rel="noopener" class="flex items-center gap-2.5 px-4 py-2 text-xs hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
+                            <i data-lucide="pen-tool" class="w-4 h-4"></i> Medium Articles
+                        </a>
+                        <a href="#" onclick="openGalleryModal(); return false;" class="flex items-center gap-2.5 px-4 py-2 text-xs hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
+                            <i data-lucide="camera" class="w-4 h-4"></i> Photo Gallery
+                        </a>
+                        <div class="my-1 border-t border-cream-border dark:border-dark-border"></div>
+                        <a href="#" onclick="openAdminAuthModal(); return false;" class="flex items-center gap-2.5 px-4 py-2 text-xs text-amber-500 font-semibold hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
+                            <i data-lucide="shield" class="w-4 h-4"></i> Admin Management Portal
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Mobile Menu Button -->
+                <button id="mobile-menu-btn" aria-label="Open Mobile Menu" class="lg:hidden p-2 rounded-full border border-cream-border dark:border-dark-border hover:bg-cream-surface dark:hover:bg-dark-surface transition-all">
+                    <i data-lucide="menu" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Mobile Drawer Navigation -->
+        <div id="mobile-menu" class="hidden lg:hidden max-w-7xl mx-auto mt-2 glass-panel rounded-3xl p-5 flex-col space-y-3 text-sm font-medium">
+            <a href="#hero" class="mobile-nav-link py-1.5 hover:opacity-80">About</a>
+            <a href="#skills" class="mobile-nav-link py-1.5 hover:opacity-80">Skills</a>
+            <a href="#projects" class="mobile-nav-link py-1.5 hover:opacity-80">Projects</a>
+            <a href="#experience" class="mobile-nav-link py-1.5 hover:opacity-80">Experience</a>
+            <a href="#education" class="mobile-nav-link py-1.5 hover:opacity-80">Education</a>
+            <a href="#courses" class="mobile-nav-link py-1.5 hover:opacity-80">Courses</a>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="relative z-10 pt-28">
+
+        <!-- 1. HERO SECTION -->
+        <section id="hero" class="min-h-[85vh] flex flex-col items-center justify-center text-center px-4 sm:px-8 relative">
+            <div class="max-w-4xl mx-auto space-y-6">
+                
+                <!-- Double Exposure Image Frame -->
+                <div class="hero-shadow-wrapper my-4">
+                    <img id="hero-img-back" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80" alt="Shadow Silhouette" class="hero-shadow-img-back w-48 h-48 sm:w-60 sm:h-60 rounded-full object-cover" />
+                    <img id="hero-img-front" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80" alt="Fatima Portrait" class="hero-shadow-img-front w-48 h-48 sm:w-60 sm:h-60 rounded-full object-cover border-2 border-stone-400/20 shadow-2xl" />
+                </div>
+
+                <div>
+                    <span id="hero-subtitle" class="text-xs sm:text-sm font-mono tracking-widest uppercase text-cream-muted dark:text-dark-muted">
+                        Full-Stack Engineer & Digital Architect
+                    </span>
+                    <h1 id="hero-title" class="font-heading text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight mt-2">
+                        FATIMA
+                    </h1>
+                </div>
+
+                <p id="hero-bio" class="text-xs sm:text-base max-w-xl mx-auto text-cream-muted dark:text-dark-muted leading-relaxed">
+                    Crafting clean, minimalistic web interfaces and scalable backend architectures with deep precision and minimalist design principles.
+                </p>
+
+                <!-- High Impact Typography Display -->
+                <div class="pt-4">
+                    <span class="font-heading font-extrabold text-5xl sm:text-7xl lg:text-8xl tracking-tighter opacity-90 select-none text-stone-800 dark:text-stone-200">
+                        Code.
+                    </span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. SKILLS SECTION -->
+        <section id="skills" class="py-20 relative overflow-hidden">
+            <div class="max-w-7xl mx-auto px-4 sm:px-8 mb-10 text-center flex flex-col items-center">
+                <span class="text-xs font-mono uppercase tracking-widest text-cream-muted dark:text-dark-muted">Capabilities & Competencies</span>
+                <div class="flex items-center gap-3 mt-2">
+                    <h2 class="font-heading text-3xl sm:text-4xl font-bold">Technical Toolkit</h2>
+                    <button onclick="adminManage('skills')" class="admin-only hidden text-xs p-1.5 rounded-lg bg-amber-500/20 text-amber-500 border border-amber-500/40 hover:bg-amber-500/30">
+                        <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dynamic Glass Marquee Container -->
+            <div class="space-y-4 py-6 border-y border-cream-border dark:border-dark-border glass-panel">
+                
+                <!-- Row 1: Left to Right -->
+                <div class="overflow-hidden whitespace-nowrap flex">
+                    <div id="skills-row-1" class="animate-marquee flex items-center gap-4 text-sm font-semibold tracking-wide">
+                        <!-- Injected dynamically via JS / Firestore -->
+                    </div>
+                </div>
+
+                <!-- Row 2: Right to Left (Reverse) -->
+                <div class="overflow-hidden whitespace-nowrap flex">
+                    <div id="skills-row-2" class="animate-marquee-reverse flex items-center gap-4 text-sm font-semibold tracking-wide">
+                        <!-- Injected dynamically via JS / Firestore -->
+                    </div>
+                </div>
+
+                <!-- Row 3: Left to Right -->
+                <div class="overflow-hidden whitespace-nowrap flex">
+                    <div id="skills-row-3" class="animate-marquee flex items-center gap-4 text-sm font-semibold tracking-wide">
+                        <!-- Injected dynamically via JS / Firestore -->
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- 3. PROJECTS SECTION -->
+        <section id="projects" class="py-20 px-4 sm:px-8 max-w-7xl mx-auto">
+            <div class="flex flex-col md:flex-row md:items-end justify-between mb-12">
+                <div>
+                    <span class="text-xs font-mono uppercase tracking-widest text-cream-muted dark:text-dark-muted">Featured Work</span>
+                    <div class="flex items-center gap-3 mt-2">
+                        <h2 class="font-heading text-3xl sm:text-4xl font-bold">Selected Projects</h2>
+                        <button onclick="adminManage('projects')" class="admin-only hidden text-xs p-1.5 rounded-lg bg-amber-500/20 text-amber-500 border border-amber-500/40 hover:bg-amber-500/30">
+                            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+                <p class="text-xs sm:text-sm text-cream-muted dark:text-dark-muted max-w-xs mt-2 md:mt-0">
+                    A collection of full-stack engineering, AI integrations, and minimalist interface designs.
+                </p>
+            </div>
+
+            <!-- Dynamic Projects Grid -->
+            <div id="projects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Injected dynamically via JS / Firestore -->
+            </div>
+        </section>
+
+        <!-- 4. EXPERIENCE SECTION -->
+        <section id="experience" class="py-20 px-4 sm:px-8 max-w-5xl mx-auto">
+            <div class="text-center mb-16 flex flex-col items-center">
+                <span class="text-xs font-mono uppercase tracking-widest text-cream-muted dark:text-dark-muted">Career Trajectory</span>
+                <div class="flex items-center gap-3 mt-2">
+                    <h2 class="font-heading text-3xl sm:text-4xl font-bold">Experience Route Map</h2>
+                    <button onclick="adminManage('experience')" class="admin-only hidden text-xs p-1.5 rounded-lg bg-amber-500/20 text-amber-500 border border-amber-500/40 hover:bg-amber-500/30">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Route Map Visual Container -->
+            <div id="experience-container" class="relative pl-6 sm:pl-10 border-l-2 border-stone-400/30 dark:border-stone-700/50 space-y-12">
+                <!-- Injected dynamically via JS / Firestore -->
+            </div>
+        </section>
+
+        <!-- 5. EDUCATION SECTION -->
+        <section id="education" class="py-20 px-4 sm:px-8 max-w-5xl mx-auto">
+            <div class="text-center mb-16 flex flex-col items-center">
+                <span class="text-xs font-mono uppercase tracking-widest text-cream-muted dark:text-dark-muted">Academic Step Progression</span>
+                <div class="flex items-center gap-3 mt-2">
+                    <h2 class="font-heading text-3xl sm:text-4xl font-bold">Education Staircase</h2>
+                    <button onclick="adminManage('education')" class="admin-only hidden text-xs p-1.5 rounded-lg bg-amber-500/20 text-amber-500 border border-amber-500/40 hover:bg-amber-500/30">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Staircase Layout Container -->
+            <div id="education-container" class="space-y-6">
+                <!-- Injected dynamically via JS / Firestore -->
+            </div>
+        </section>
+
+        <!-- 6. COURSES & CERTIFICATIONS SECTION -->
+        <section id="courses" class="py-20 px-4 sm:px-8 max-w-7xl mx-auto">
+            <div class="text-center mb-16 flex flex-col items-center">
+                <span class="text-xs font-mono uppercase tracking-widest text-cream-muted dark:text-dark-muted">Verified Badges & Credentials</span>
+                <div class="flex items-center gap-3 mt-2">
+                    <h2 class="font-heading text-3xl sm:text-4xl font-bold">Courses & Specializations</h2>
+                    <button onclick="adminManage('courses')" class="admin-only hidden text-xs p-1.5 rounded-lg bg-amber-500/20 text-amber-500 border border-amber-500/40 hover:bg-amber-500/30">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="courses-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Injected dynamically via JS / Firestore -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 7. FOOTER SECTION -->
+    <footer class="border-t border-cream-border dark:border-dark-border py-12 px-4 sm:px-8 mt-20 relative z-10 glass-panel">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+            <div>
+                <span class="font-heading font-bold text-lg tracking-tight">0xfatima</span>
+                <p class="text-xs text-cream-muted dark:text-dark-muted mt-1">© 2026 Fatima. Built with live cloud synchronization & precision.</p>
+            </div>
+
+            <!-- Social Links -->
+            <div class="flex items-center gap-6">
+                <a href="https://linkedin.com" target="_blank" rel="noopener" aria-label="LinkedIn Profile" class="text-cream-muted dark:text-dark-muted hover:text-cream-text dark:hover:text-dark-text transition-colors">
+                    <i data-lucide="linkedin" class="w-5 h-5"></i>
+                </a>
+                <a href="https://github.com" target="_blank" rel="noopener" aria-label="GitHub Profile" class="text-cream-muted dark:text-dark-muted hover:text-cream-text dark:hover:text-dark-text transition-colors">
+                    <i data-lucide="github" class="w-5 h-5"></i>
+                </a>
+                <a href="https://twitter.com" target="_blank" rel="noopener" aria-label="Twitter Profile" class="text-cream-muted dark:text-dark-muted hover:text-cream-text dark:hover:text-dark-text transition-colors">
+                    <i data-lucide="twitter" class="w-5 h-5"></i>
+                </a>
+                <a href="mailto:fatima@example.com" aria-label="Email Contact" class="text-cream-muted dark:text-dark-muted hover:text-cream-text dark:hover:text-dark-text transition-colors">
+                    <i data-lucide="mail" class="w-5 h-5"></i>
+                </a>
+            </div>
+
+            <!-- Back to top -->
+            <a href="#hero" aria-label="Back to top" class="p-3 rounded-full border border-cream-border dark:border-dark-border hover:bg-cream-surface dark:hover:bg-dark-surface transition-colors">
+                <i data-lucide="arrow-up" class="w-4 h-4"></i>
+            </a>
+        </div>
+    </footer>
+
+    <!-- MODAL: General Content Viewer -->
+    <div id="general-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="glass-panel w-full max-w-lg rounded-3xl p-6 space-y-4 relative">
+            <button onclick="closeModal('general-modal')" class="absolute top-4 right-4 p-2 rounded-full border border-cream-border dark:border-dark-border">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+            <h3 id="modal-title" class="font-heading text-xl font-bold"></h3>
+            <div id="modal-body" class="text-xs leading-relaxed text-cream-muted dark:text-dark-muted"></div>
+        </div>
+    </div>
+
+    <!-- MODAL: Photography Gallery Modal -->
+    <div id="gallery-modal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="glass-panel w-full max-w-4xl rounded-3xl p-6 space-y-4 relative max-h-[90vh] overflow-y-auto">
+            <button onclick="closeModal('gallery-modal')" class="absolute top-4 right-4 p-2 rounded-full border border-cream-border dark:border-dark-border z-10">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pr-8">
+                <h3 class="font-heading text-2xl font-bold">Photography Gallery</h3>
+                <label class="cursor-pointer inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-cream-border dark:border-dark-border text-xs font-medium hover:bg-stone-500/20 transition-colors">
+                    <i data-lucide="upload" class="w-3.5 h-3.5"></i> Add Photo to Cloud
+                    <input type="file" accept="image/*" class="hidden" onchange="handleGalleryUpload(event)">
+                </label>
+            </div>
+            <div id="gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Project Images Gallery Modal -->
+    <div id="project-gallery-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="glass-panel w-full max-w-3xl rounded-3xl p-6 space-y-4 relative">
+            <button onclick="closeModal('project-gallery-modal')" class="absolute top-4 right-4 p-2 rounded-full border border-cream-border dark:border-dark-border z-10">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+            <h3 id="project-gallery-title" class="font-heading text-xl font-bold mb-4">Project Screenshots</h3>
+            <div id="project-gallery-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Admin Authentication Modal -->
+    <div id="admin-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="glass-panel w-full max-w-sm rounded-3xl p-6 space-y-4 relative">
+            <button onclick="closeModal('admin-modal')" class="absolute top-4 right-4 p-2 rounded-full border border-cream-border dark:border-dark-border">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+            <h3 class="font-heading text-xl font-bold flex items-center gap-2 text-amber-500">
+                <i data-lucide="shield-check" class="w-5 h-5"></i> Admin Management Login
+            </h3>
+            <p class="text-xs text-cream-muted dark:text-dark-muted">Sign in to unlock backend database controls and real-time content editing.</p>
+            <div id="admin-login-status" class="hidden p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs font-mono">
+                Authentication successful. Unlocking admin dashboard...
+            </div>
+            <form onsubmit="handleAdminAuth(event)" class="space-y-3">
+                <div>
+                    <label class="text-[10px] uppercase font-mono text-cream-muted dark:text-dark-muted block mb-1">Passkey / Key Code</label>
+                    <input id="admin-passcode-input" type="password" placeholder="Enter keycode (e.g. admin123)" class="w-full px-4 py-2.5 rounded-xl border border-cream-border dark:border-dark-border bg-stone-500/10 text-xs focus:outline-none" required />
+                </div>
+                <button type="submit" class="w-full py-2.5 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">
+                    Authenticate Session
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Comprehensive Admin CRUD Dashboard -->
+    <div id="admin-dashboard-modal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-lg flex items-center justify-center p-4 hidden">
+        <div class="glass-panel w-full max-w-5xl rounded-3xl p-6 space-y-6 relative max-h-[92vh] overflow-y-auto">
+            <button onclick="closeModal('admin-dashboard-modal')" class="absolute top-4 right-4 p-2 rounded-full border border-cream-border dark:border-dark-border z-10">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pr-10 border-b border-cream-border dark:border-dark-border pb-4">
+                <div>
+                    <h3 class="font-heading text-2xl font-bold flex items-center gap-2">
+                        <i data-lucide="database" class="w-6 h-6 text-amber-500"></i> Backend Database Console
+                    </h3>
+                    <p class="text-xs text-cream-muted dark:text-dark-muted">Manage projects, skills, experience, education, courses, and media image uploads.</p>
+                </div>
+                <button onclick="seedInitialData()" class="text-xs px-3.5 py-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 font-medium transition-colors flex items-center gap-1.5">
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Reset Default DB Seed
+                </button>
+            </div>
+
+            <!-- Tab Navigation Header -->
+            <div class="flex items-center gap-2 overflow-x-auto pb-2 border-b border-cream-border dark:border-dark-border text-xs font-semibold">
+                <button onclick="switchAdminTab('projects')" id="tab-btn-projects" class="admin-tab-btn px-4 py-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">Projects</button>
+                <button onclick="switchAdminTab('skills')" id="tab-btn-skills" class="admin-tab-btn px-4 py-2 rounded-xl bg-stone-500/10 text-stone-400 hover:bg-stone-500/20">Skills</button>
+                <button onclick="switchAdminTab('experience')" id="tab-btn-experience" class="admin-tab-btn px-4 py-2 rounded-xl bg-stone-500/10 text-stone-400 hover:bg-stone-500/20">Experience</button>
+                <button onclick="switchAdminTab('education')" id="tab-btn-education" class="admin-tab-btn px-4 py-2 rounded-xl bg-stone-500/10 text-stone-400 hover:bg-stone-500/20">Education</button>
+                <button onclick="switchAdminTab('courses')" id="tab-btn-courses" class="admin-tab-btn px-4 py-2 rounded-xl bg-stone-500/10 text-stone-400 hover:bg-stone-500/20">Courses</button>
+            </div>
+
+            <!-- TAB 1: PROJECTS MANAGEMENT -->
+            <div id="admin-tab-projects" class="admin-tab-content space-y-6">
+                <form onsubmit="handleSaveProject(event)" class="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50">
+                    <h4 class="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i> Add / Edit Project Record
+                    </h4>
+                    <input type="hidden" id="proj-form-id" value="" />
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Project Title</label>
+                            <input id="proj-title" type="text" required placeholder="e.g. Nexus Analytics" class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Tech Stack (comma separated)</label>
+                            <input id="proj-stack" type="text" required placeholder="React, TypeScript, Tailwind" class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Deployed Live Link URL</label>
+                            <input id="proj-live" type="url" placeholder="https://app.example.com" class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">GitHub Repo URL</label>
+                            <input id="proj-github" type="url" placeholder="https://github.com/..." class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Description (1-2 lines)</label>
+                        <input id="proj-desc" type="text" required placeholder="Real-time web metrics intelligence platform..." class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Project Cover Image (Upload or Image URL)</label>
+                        <div class="flex items-center gap-3">
+                            <input id="proj-cover-url" type="text" placeholder="https://..." class="flex-1 px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                            <label class="cursor-pointer px-3 py-2 rounded-xl border border-stone-700 bg-stone-800 text-xs hover:bg-stone-700 font-medium transition-colors">
+                                Upload File
+                                <input type="file" accept="image/*" class="hidden" onchange="uploadCompressedImage(event, 'proj-cover-url')">
+                            </label>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-end gap-3 pt-2">
+                        <button type="button" onclick="resetProjectForm()" class="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
+                        <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Project Record</button>
+                    </div>
+                </form>
+
+                <div class="space-y-3">
+                    <h4 class="font-heading font-bold text-xs uppercase tracking-wider text-stone-400">Existing Projects Database</h4>
+                    <div id="admin-projects-list" class="space-y-2">
+                        <!-- Injected via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: SKILLS MANAGEMENT -->
+            <div id="admin-tab-skills" class="admin-tab-content space-y-6 hidden">
+                <form onsubmit="handleSaveSkill(event)" class="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50">
+                    <h4 class="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i> Add Skill Name
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Skill Name</label>
+                            <input id="skill-name" type="text" required placeholder="e.g. GraphQL" class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Target Marquee Row</label>
+                            <select id="skill-row" class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none">
+                                <option value="1">Row 1 (Left to Right)</option>
+                                <option value="2">Row 2 (Right to Left)</option>
+                                <option value="3">Row 3 (Left to Right)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex justify-end pt-2">
+                        <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Add Skill Token</button>
+                    </div>
+                </form>
+
+                <div class="space-y-3">
+                    <h4 class="font-heading font-bold text-xs uppercase tracking-wider text-stone-400">Current Skills List</h4>
+                    <div id="admin-skills-list" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <!-- Injected via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: EXPERIENCE MANAGEMENT -->
+            <div id="admin-tab-experience" class="admin-tab-content space-y-6 hidden">
+                <form onsubmit="handleSaveExperience(event)" class="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50">
+                    <h4 class="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i> Add / Edit Experience Route Stop
+                    </h4>
+                    <input type="hidden" id="exp-form-id" value="" />
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Job Title</label>
+                            <input id="exp-title" type="text" required placeholder="Senior Engineer" class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Company Name</label>
+                            <input id="exp-company" type="text" required placeholder="MetaLabs Inc." class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Duration / Dates</label>
+                            <input id="exp-duration" type="text" required placeholder="2023 — Present" class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Employment Type</label>
+                            <input id="exp-type" type="text" required placeholder="Full-time" class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Company Logo Image (Upload or URL)</label>
+                            <div class="flex items-center gap-3">
+                                <input id="exp-logo-url" type="text" placeholder="https://..." class="flex-1 px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                                <label class="cursor-pointer px-3 py-2 rounded-xl border border-stone-700 bg-stone-800 text-xs hover:bg-stone-700 font-medium transition-colors">
+                                    Upload
+                                    <input type="file" accept="image/*" class="hidden" onchange="uploadCompressedImage(event, 'exp-logo-url')">
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Description (2-3 lines)</label>
+                        <textarea id="exp-desc" rows="2" required placeholder="Architected microservices and core web platform..." class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none"></textarea>
+                    </div>
+                    <div class="flex justify-end gap-3 pt-2">
+                        <button type="button" onclick="resetExpForm()" class="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
+                        <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Experience Stop</button>
+                    </div>
+                </form>
+
+                <div id="admin-experience-list" class="space-y-2">
+                    <!-- Injected via JS -->
+                </div>
+            </div>
+
+            <!-- TAB 4: EDUCATION MANAGEMENT -->
+            <div id="admin-tab-education" class="admin-tab-content space-y-6 hidden">
+                <form onsubmit="handleSaveEducation(event)" class="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50">
+                    <h4 class="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i> Add / Edit Education Step
+                    </h4>
+                    <input type="hidden" id="edu-form-id" value="" />
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Step Badge Label</label>
+                            <input id="edu-step-label" type="text" required placeholder="Step 03 / Master's Level" class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Degree / Qualification</label>
+                            <input id="edu-degree" type="text" required placeholder="M.S. in Computer Science" class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Institution Name</label>
+                            <input id="edu-school" type="text" required placeholder="Stanford University" class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Years / Duration</label>
+                            <input id="edu-dates" type="text" required placeholder="2020 — 2022" class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Institution Logo (Upload or URL)</label>
+                            <div class="flex items-center gap-3">
+                                <input id="edu-logo-url" type="text" placeholder="https://..." class="flex-1 px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                                <label class="cursor-pointer px-3 py-2 rounded-xl border border-stone-700 bg-stone-800 text-xs hover:bg-stone-700 font-medium transition-colors">
+                                    Upload
+                                    <input type="file" accept="image/*" class="hidden" onchange="uploadCompressedImage(event, 'edu-logo-url')">
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Details & Specializations</label>
+                        <textarea id="edu-desc" rows="2" required placeholder="Specialization in AI & Distributed Systems..." class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none"></textarea>
+                    </div>
+                    <div class="flex justify-end gap-3 pt-2">
+                        <button type="button" onclick="resetEduForm()" class="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
+                        <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Education Step</button>
+                    </div>
+                </form>
+
+                <div id="admin-education-list" class="space-y-2">
+                    <!-- Injected via JS -->
+                </div>
+            </div>
+
+            <!-- TAB 5: COURSES MANAGEMENT -->
+            <div id="admin-tab-courses" class="admin-tab-content space-y-6 hidden">
+                <form onsubmit="handleSaveCourse(event)" class="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50">
+                    <h4 class="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i> Add / Edit Certification Record
+                    </h4>
+                    <input type="hidden" id="course-form-id" value="" />
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Course Title</label>
+                            <input id="course-title" type="text" required placeholder="AWS Solutions Architect" class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Issuing Authority Name</label>
+                            <input id="course-issuer" type="text" required placeholder="Amazon Web Services" class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Specialization / Domain</label>
+                            <input id="course-spec" type="text" required placeholder="Cloud Engineering" class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Verification Link</label>
+                            <input id="course-link" type="url" placeholder="https://aws.amazon.com" class="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-mono uppercase text-stone-400 block mb-1">Badge Image / Issuing Logo (Upload or URL)</label>
+                            <div class="flex items-center gap-3">
+                                <input id="course-logo-url" type="text" placeholder="https://..." class="flex-1 px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs focus:outline-none" />
+                                <label class="cursor-pointer px-3 py-2 rounded-xl border border-stone-700 bg-stone-800 text-xs hover:bg-stone-700 font-medium transition-colors">
+                                    Upload
+                                    <input type="file" accept="image/*" class="hidden" onchange="uploadCompressedImage(event, 'course-logo-url')">
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3 pt-2">
+                        <button type="button" onclick="resetCourseForm()" class="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
+                        <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Credential</button>
+                    </div>
+                </form>
+
+                <div id="admin-courses-list" class="space-y-2">
+                    <!-- Injected via JS -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- FIREBASE MODULE & APPLICATION BACKEND ENGINE -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, onSnapshot, setDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Firebase Configuration & Application Identification
+        const appId = typeof __app_id !== 'undefined' ? __app_id : '0xfatima-portfolio';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyDummyKeyForPortfolioPrototype",
+            authDomain: "portfolio-app.firebaseapp.com",
+            projectId: "portfolio-app",
+            storageBucket: "portfolio-app.appspot.com",
+            messagingSenderId: "1234567890",
+            appId: "1:1234567890:web:portfolio123"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let user = null;
+        let isAdminLoggedIn = false;
+
+        // Collections Data Stores
+        let localDb = {
+            projects: [],
+            skills: [],
+            experience: [],
+            education: [],
+            courses: [],
+            gallery: []
+        };
+
+        // Initialize Authentication
+        async function initAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    const cred = await signInWithCustomToken(auth, __initial_auth_token);
+                    user = cred.user;
+                } else {
+                    const cred = await signInAnonymously(auth);
+                    user = cred.user;
+                }
+            } catch (err) {
+                console.warn("Firestore Auth fallback initialized:", err);
+            }
+            bindFirestoreListeners();
+        }
+
+        // Firestore Strict Collections Paths
+        function getCollectionRef(colName) {
+            return collection(db, 'artifacts', appId, 'public', 'data', colName);
+        }
+
+        function getDocRef(colName, docId) {
+            return doc(db, 'artifacts', appId, 'public', 'data', colName, docId);
+        }
+
+        // Bind Real-Time Cloud Subscriptions
+        function bindFirestoreListeners() {
+            const collections = ['projects', 'skills', 'experience', 'education', 'courses', 'gallery'];
+
+            collections.forEach(col => {
+                onSnapshot(getCollectionRef(col), (snapshot) => {
+                    const docs = [];
+                    snapshot.forEach(d => {
+                        docs.push({ id: d.id, ...d.data() });
+                    });
+                    
+                    // If database is blank on initial boot, seed default portfolio data
+                    if (docs.length === 0) {
+                        seedInitialData();
+                        return;
+                    }
+
+                    localDb[col] = docs;
+                    renderSection(col);
+                    renderAdminList(col);
+                }, (err) => {
+                    console.error(`Error loading ${col} from cloud:`, err);
+                });
+            });
+        }
+
+        // Default Data Seeding Function
+        window.seedInitialData = async function() {
+            if (!user) return;
+            
+            const seedProjects = [
+                {
+                    title: "Nexus Analytics Platform",
+                    stack: ["React", "TypeScript", "Tailwind", "Node.js"],
+                    description: "Real-time web metrics intelligence platform providing instant user telemetry and customized data dashboards.",
+                    live: "https://example.com",
+                    github: "https://github.com",
+                    cover: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80",
+                    gallery: [
+                        "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80",
+                        "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80"
+                    ]
+                },
+                {
+                    title: "Aura Creative Suite",
+                    stack: ["Next.js", "Python", "FastAPI", "Tailwind"],
+                    description: "Generative AI assistant interface for content writers with integrated natural language processing models.",
+                    live: "https://example.com",
+                    github: "https://github.com",
+                    cover: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
+                    gallery: [
+                        "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
+                        "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=800&q=80"
+                    ]
+                },
+                {
+                    title: "Aether Vault Protocol",
+                    stack: ["Solidity", "Ethers.js", "React", "Web3"],
+                    description: "Decentralized treasury management web app with automated multi-sig verification and wallet connect.",
+                    live: "https://example.com",
+                    github: "https://github.com",
+                    cover: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80",
+                    gallery: [
+                        "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80",
+                        "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&w=800&q=80"
+                    ]
+                }
+            ];
+
+            const seedSkills = [
+                { name: "React.js", row: 1 }, { name: "TypeScript", row: 1 }, { name: "Next.js", row: 1 }, { name: "Node.js", row: 1 }, { name: "Tailwind CSS", row: 1 }, { name: "Python", row: 1 },
+                { name: "System Architecture", row: 2 }, { name: "Docker & K8s", row: 2 }, { name: "AWS Cloud", row: 2 }, { name: "CI/CD Pipelines", row: 2 }, { name: "REST APIs", row: 2 },
+                { name: "UI/UX Design", row: 3 }, { name: "Figma Prototyping", row: 3 }, { name: "Web Vitals", row: 3 }, { name: "Jest & Testing", row: 3 }, { name: "Three.js", row: 3 }
+            ];
+
+            const seedExperience = [
+                {
+                    title: "Senior Full Stack Engineer",
+                    company: "MetaLabs Inc.",
+                    duration: "2023 — Present",
+                    type: "Full-time",
+                    description: "Architected resilient microservices driving high-throughput frontend web client interfaces. Spearheaded dynamic web vitals optimization improving core performance by 35%.",
+                    logo: ""
+                },
+                {
+                    title: "Frontend Developer",
+                    company: "Vanguard Software",
+                    duration: "2021 — 2023",
+                    type: "Contract",
+                    description: "Engineered responsive web app components utilizing React and Tailwind CSS. Built custom visualization charts for real-time data streaming.",
+                    logo: ""
+                },
+                {
+                    title: "Associate Software Developer",
+                    company: "Nexus Technologies",
+                    duration: "2020 — 2021",
+                    type: "Full-time",
+                    description: "Developed automated testing scripts and maintained Python backend endpoints. Collaborated closely with UI/UX design teams to translate wireframes.",
+                    logo: ""
+                }
+            ];
+
+            const seedEducation = [
+                {
+                    stepLabel: "Step 03 / Master's Level",
+                    degree: "M.S. in Computer Science",
+                    school: "Stanford University",
+                    dates: "2020 — 2022",
+                    description: "Thesis on High-Performance Concurrent Data Pipelines. Achieved First Class Honors (3.9/4.0 GPA).",
+                    logo: ""
+                },
+                {
+                    stepLabel: "Step 02 / Bachelor's Level",
+                    degree: "B.S. in Software Engineering",
+                    school: "University of Technology",
+                    dates: "2016 — 2020",
+                    description: "Core studies in Algorithms, Data Structures, Operating Systems, and Object-Oriented Software Design.",
+                    logo: ""
+                },
+                {
+                    stepLabel: "Step 01 / Foundation",
+                    degree: "Advanced STEM Diploma",
+                    school: "National Science Academy",
+                    dates: "2014 — 2016",
+                    description: "Focus on Advanced Mathematics, Physics, and Foundations of Computer Programming.",
+                    logo: ""
+                }
+            ];
+
+            const seedCourses = [
+                { title: "AWS Certified Solutions Architect", issuer: "Amazon Web Services", spec: "Cloud Engineering", link: "https://aws.amazon.com", logo: "" },
+                { title: "Deep Neural Networks Specialization", issuer: "DeepLearning.AI", spec: "Deep Learning", link: "https://coursera.org", logo: "" },
+                { title: "Advanced React Patterns", issuer: "Frontend Masters", spec: "Frontend Performance", link: "https://frontendmasters.com", logo: "" },
+                { title: "Distributed Data Systems", issuer: "MIT OpenCourseWare", spec: "Database Systems", link: "https://ocw.mit.edu", logo: "" }
+            ];
+
+            const seedGallery = [
+                { url: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80", caption: "Workspace setup" },
+                { url: "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=600&q=80", caption: "Photography trip" },
+                { url: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80", caption: "Landscape focus" }
+            ];
+
+            for (const item of seedProjects) await addDoc(getCollectionRef('projects'), item);
+            for (const item of seedSkills) await addDoc(getCollectionRef('skills'), item);
+            for (const item of seedExperience) await addDoc(getCollectionRef('experience'), item);
+            for (const item of seedEducation) await addDoc(getCollectionRef('education'), item);
+            for (const item of seedCourses) await addDoc(getCollectionRef('courses'), item);
+            for (const item of seedGallery) await addDoc(getCollectionRef('gallery'), item);
+        };
+
+        // IMAGE COMPRESSION HELPER (Canvas-driven Base64 processing for fast rendering)
+        window.uploadCompressedImage = function(event, targetInputId) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (e) => {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    const maxDim = 600;
+
+                    if (width > height && width > maxDim) {
+                        height = Math.round((height * maxDim) / width);
+                        width = maxDim;
+                    } else if (height > maxDim) {
+                        width = Math.round((width * maxDim) / height);
+                        height = maxDim;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+                    const targetElem = document.getElementById(targetInputId);
+                    if (targetElem) targetElem.value = compressedDataUrl;
+                };
+            };
+        };
+
+        // CRUD Database Operations
+        window.handleSaveProject = async function(event) {
+            event.preventDefault();
+            if (!user) return;
+
+            const id = document.getElementById('proj-form-id').value;
+            const title = document.getElementById('proj-title').value;
+            const stackStr = document.getElementById('proj-stack').value;
+            const stack = stackStr.split(',').map(s => s.trim()).filter(Boolean);
+            const live = document.getElementById('proj-live').value;
+            const github = document.getElementById('proj-github').value;
+            const description = document.getElementById('proj-desc').value;
+            const cover = document.getElementById('proj-cover-url').value || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80';
+
+            const data = { title, stack, live, github, description, cover, gallery: [cover] };
+
+            if (id) {
+                await setDoc(getDocRef('projects', id), data, { merge: true });
+            } else {
+                await addDoc(getCollectionRef('projects'), data);
+            }
+            resetProjectForm();
+        };
+
+        window.handleSaveSkill = async function(event) {
+            event.preventDefault();
+            if (!user) return;
+
+            const name = document.getElementById('skill-name').value;
+            const row = parseInt(document.getElementById('skill-row').value, 10);
+
+            await addDoc(getCollectionRef('skills'), { name, row });
+            document.getElementById('skill-name').value = '';
+        };
+
+        window.handleSaveExperience = async function(event) {
+            event.preventDefault();
+            if (!user) return;
+
+            const id = document.getElementById('exp-form-id').value;
+            const title = document.getElementById('exp-title').value;
+            const company = document.getElementById('exp-company').value;
+            const duration = document.getElementById('exp-duration').value;
+            const type = document.getElementById('exp-type').value;
+            const logo = document.getElementById('exp-logo-url').value;
+            const description = document.getElementById('exp-desc').value;
+
+            const data = { title, company, duration, type, logo, description };
+
+            if (id) {
+                await setDoc(getDocRef('experience', id), data, { merge: true });
+            } else {
+                await addDoc(getCollectionRef('experience'), data);
+            }
+            resetExpForm();
+        };
+
+        window.handleSaveEducation = async function(event) {
+            event.preventDefault();
+            if (!user) return;
+
+            const id = document.getElementById('edu-form-id').value;
+            const stepLabel = document.getElementById('edu-step-label').value;
+            const degree = document.getElementById('edu-degree').value;
+            const school = document.getElementById('edu-school').value;
+            const dates = document.getElementById('edu-dates').value;
+            const logo = document.getElementById('edu-logo-url').value;
+            const description = document.getElementById('edu-desc').value;
+
+            const data = { stepLabel, degree, school, dates, logo, description };
+
+            if (id) {
+                await setDoc(getDocRef('education', id), data, { merge: true });
+            } else {
+                await addDoc(getCollectionRef('education'), data);
+            }
+            resetEduForm();
+        };
+
+        window.handleSaveCourse = async function(event) {
+            event.preventDefault();
+            if (!user) return;
+
+            const id = document.getElementById('course-form-id').value;
+            const title = document.getElementById('course-title').value;
+            const issuer = document.getElementById('course-issuer').value;
+            const spec = document.getElementById('course-spec').value;
+            const link = document.getElementById('course-link').value;
+            const logo = document.getElementById('course-logo-url').value;
+
+            const data = { title, issuer, spec, link, logo };
+
+            if (id) {
+                await setDoc(getDocRef('courses', id), data, { merge: true });
+            } else {
+                await addDoc(getCollectionRef('courses'), data);
+            }
+            resetCourseForm();
+        };
+
+        window.deleteDocument = async function(collectionName, id) {
+            if (!user) return;
+            await deleteDoc(getDocRef(collectionName, id));
+        };
+
+        // DOM Render Engines
+        function renderSection(section) {
+            if (section === 'projects') {
+                const grid = document.getElementById('projects-grid');
+                if (!grid) return;
+                grid.innerHTML = localDb.projects.map(p => `
+                    <div class="glass-panel rounded-3xl p-5 flex flex-col justify-between group transition-all duration-300 hover:-translate-y-1 relative">
+                        <div>
+                            <div class="relative w-full aspect-video rounded-2xl overflow-hidden mb-4 bg-stone-800">
+                                <img src="${p.cover}" alt="${p.title}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 filter grayscale contrast-110" />
+                                ${p.live ? `<a href="${p.live}" target="_blank" rel="noopener" title="Open Live Site" class="absolute top-3 right-3 w-10 h-10 rounded-full glass-panel flex items-center justify-center text-white opacity-90 hover:opacity-100 hover:scale-110 transition-all z-20 shadow-lg"><i data-lucide="arrow-up-right" class="w-5 h-5"></i></a>` : ''}
+                            </div>
+                            <div class="flex flex-wrap gap-1.5 mb-3">
+                                ${(p.stack || []).map(st => `<span class="px-2.5 py-1 text-[10px] font-mono rounded-md bg-stone-500/10 border border-cream-border dark:border-dark-border">${st}</span>`).join('')}
+                            </div>
+                            <h3 class="font-heading text-xl font-bold mb-1">${p.title}</h3>
+                            <p class="text-xs text-cream-muted dark:text-dark-muted line-clamp-2 mb-4">${p.description}</p>
+                        </div>
+                        <div class="flex items-center justify-between pt-3 border-t border-cream-border dark:border-dark-border">
+                            <button onclick="openProjectGallery('${p.title.replace(/'/g, "\\'")}', ${JSON.stringify(p.gallery || [p.cover]).replace(/"/g, '&quot;')})" class="text-xs font-medium flex items-center gap-1 hover:underline">
+                                <i data-lucide="images" class="w-3.5 h-3.5"></i> Multiple Views
+                            </button>
+                            ${p.github ? `<a href="${p.github}" target="_blank" rel="noopener" class="text-xs font-medium flex items-center gap-1 hover:underline"><i data-lucide="github" class="w-3.5 h-3.5"></i> Code Repo</a>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } else if (section === 'skills') {
+                const r1 = document.getElementById('skills-row-1');
+                const r2 = document.getElementById('skills-row-2');
+                const r3 = document.getElementById('skills-row-3');
+
+                const row1Skills = localDb.skills.filter(s => (s.row || 1) === 1);
+                const row2Skills = localDb.skills.filter(s => s.row === 2);
+                const row3Skills = localDb.skills.filter(s => s.row === 3);
+
+                const renderRowHTML = (items) => {
+                    const skillHtml = items.map(s => `<span class="px-5 py-2.5 rounded-full border border-cream-border dark:border-dark-border bg-stone-500/10 backdrop-blur-md">${s.name}</span>`).join('');
+                    return skillHtml + skillHtml; // Duplicated for continuous marquee effect
+                };
+
+                if (r1) r1.innerHTML = renderRowHTML(row1Skills.length ? row1Skills : [{ name: "React" }, { name: "TypeScript" }]);
+                if (r2) r2.innerHTML = renderRowHTML(row2Skills.length ? row2Skills : [{ name: "System Design" }, { name: "Docker" }]);
+                if (r3) r3.innerHTML = renderRowHTML(row3Skills.length ? row3Skills : [{ name: "UI/UX" }, { name: "Three.js" }]);
+
+            } else if (section === 'experience') {
+                const container = document.getElementById('experience-container');
+                if (!container) return;
+                container.innerHTML = localDb.experience.map((exp, idx) => `
+                    <div class="relative group">
+                        <div class="absolute -left-[31px] sm:-left-[47px] top-1.5 w-6 h-6 rounded-full bg-stone-900 dark:bg-stone-100 text-stone-100 dark:text-stone-900 flex items-center justify-center text-xs font-mono font-bold border-4 border-cream-bg dark:border-dark-bg shadow-md">
+                            ${idx + 1}
+                        </div>
+                        <div class="glass-panel p-6 rounded-3xl">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                                <div class="flex items-center gap-3">
+                                    ${exp.logo ? `<img src="${exp.logo}" class="w-10 h-10 rounded-xl object-cover" />` : `<div class="w-10 h-10 rounded-xl bg-stone-800 flex items-center justify-center text-white font-bold text-sm">${exp.company ? exp.company[0] : 'C'}</div>`}
+                                    <div>
+                                        <h3 class="font-heading text-lg font-bold">${exp.title}</h3>
+                                        <p class="text-xs text-cream-muted dark:text-dark-muted">${exp.company}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 text-xs font-mono">
+                                    <span class="px-2.5 py-1 rounded-full border border-cream-border dark:border-dark-border">${exp.type || 'Full-time'}</span>
+                                    <span class="text-cream-muted dark:text-dark-muted">${exp.duration}</span>
+                                </div>
+                            </div>
+                            <p class="text-xs sm:text-sm text-cream-muted dark:text-dark-muted leading-relaxed">${exp.description}</p>
+                        </div>
+                    </div>
+                `).join('');
+            } else if (section === 'education') {
+                const container = document.getElementById('education-container');
+                if (!container) return;
+                const marginClasses = ['ml-0 md:ml-24', 'ml-0 md:ml-12', 'ml-0'];
+                container.innerHTML = localDb.education.map((edu, idx) => `
+                    <div class="step-item ${marginClasses[idx % 3]} glass-panel p-6 rounded-3xl border-l-8 border-stone-600">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                            <div class="flex items-center gap-3">
+                                ${edu.logo ? `<img src="${edu.logo}" class="w-8 h-8 rounded-lg object-cover"/>` : ''}
+                                <div>
+                                    <span class="text-[10px] font-mono tracking-wider uppercase text-stone-400">${edu.stepLabel || `Step 0${idx+1}`}</span>
+                                    <h3 class="font-heading text-xl font-bold">${edu.degree}</h3>
+                                </div>
+                            </div>
+                            <span class="text-xs font-mono text-cream-muted dark:text-dark-muted">${edu.dates}</span>
+                        </div>
+                        <p class="text-xs font-semibold text-cream-muted dark:text-dark-muted mb-2">${edu.school}</p>
+                        <p class="text-xs text-cream-muted dark:text-dark-muted leading-relaxed">${edu.description}</p>
+                    </div>
+                `).join('');
+            } else if (section === 'courses') {
+                const grid = document.getElementById('courses-grid');
+                if (!grid) return;
+                grid.innerHTML = localDb.courses.map(c => `
+                    <div class="glass-panel rounded-3xl p-6 flex flex-col justify-between h-full group hover:border-stone-400 transition-all">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                ${c.logo ? `<img src="${c.logo}" class="w-12 h-12 rounded-2xl object-cover"/>` : `
+                                    <div class="w-12 h-12 rounded-2xl bg-stone-800 flex items-center justify-center text-white">
+                                        <i data-lucide="award" class="w-6 h-6"></i>
+                                    </div>
+                                `}
+                                <span class="text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded bg-stone-500/10 border border-cream-border dark:border-dark-border">${c.spec || 'Certificate'}</span>
+                            </div>
+                            <p class="text-[10px] uppercase font-mono text-cream-muted dark:text-dark-muted">${c.issuer}</p>
+                            <h3 class="font-heading text-base font-bold mb-2">${c.title}</h3>
+                        </div>
+                        ${c.link ? `
+                            <a href="${c.link}" target="_blank" rel="noopener" class="inline-flex items-center justify-between text-xs font-medium pt-3 border-t border-cream-border dark:border-dark-border hover:underline">
+                                <span>Verify Credential</span>
+                                <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                            </a>
+                        ` : ''}
+                    </div>
+                `).join('');
+            } else if (section === 'gallery') {
+                const grid = document.getElementById('gallery-grid');
+                if (!grid) return;
+                grid.innerHTML = localDb.gallery.map(g => `
+                    <div class="relative group rounded-2xl overflow-hidden aspect-square bg-stone-800">
+                        <img src="${g.url}" alt="${g.caption || 'Gallery photo'}" class="w-full h-full object-cover filter grayscale hover:grayscale-0 transition-all duration-300"/>
+                        ${g.caption ? `<div class="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-black/80 to-transparent text-white text-xs font-medium">${g.caption}</div>` : ''}
+                    </div>
+                `).join('');
+            }
+
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        // Render Admin Control Lists
+        function renderAdminList(col) {
+            if (col === 'projects') {
+                const container = document.getElementById('admin-projects-list');
+                if (!container) return;
+                container.innerHTML = localDb.projects.map(p => `
+                    <div class="flex items-center justify-between p-3 rounded-xl bg-stone-900 border border-stone-800 text-xs">
+                        <div class="flex items-center gap-3">
+                            <img src="${p.cover}" class="w-10 h-10 rounded-lg object-cover"/>
+                            <div>
+                                <h5 class="font-bold">${p.title}</h5>
+                                <p class="text-[10px] text-stone-400">${(p.stack || []).join(', ')}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="editProject('${p.id}')" class="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-stone-200">Edit</button>
+                            <button onclick="deleteDocument('projects', '${p.id}')" class="px-2.5 py-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30">Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+            } else if (col === 'skills') {
+                const container = document.getElementById('admin-skills-list');
+                if (!container) return;
+                container.innerHTML = localDb.skills.map(s => `
+                    <div class="flex items-center justify-between p-2.5 rounded-xl bg-stone-900 border border-stone-800 text-xs">
+                        <div>
+                            <span class="font-semibold block">${s.name}</span>
+                            <span class="text-[10px] text-stone-400">Row ${s.row || 1}</span>
+                        </div>
+                        <button onclick="deleteDocument('skills', '${s.id}')" class="p-1 rounded text-rose-400 hover:bg-rose-500/20">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                `).join('');
+            } else if (col === 'experience') {
+                const container = document.getElementById('admin-experience-list');
+                if (!container) return;
+                container.innerHTML = localDb.experience.map(exp => `
+                    <div class="flex items-center justify-between p-3 rounded-xl bg-stone-900 border border-stone-800 text-xs">
+                        <div>
+                            <h5 class="font-bold">${exp.title}</h5>
+                            <p class="text-[10px] text-stone-400">${exp.company} (${exp.duration})</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="editExp('${exp.id}')" class="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-stone-200">Edit</button>
+                            <button onclick="deleteDocument('experience', '${exp.id}')" class="px-2.5 py-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30">Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+            } else if (col === 'education') {
+                const container = document.getElementById('admin-education-list');
+                if (!container) return;
+                container.innerHTML = localDb.education.map(edu => `
+                    <div class="flex items-center justify-between p-3 rounded-xl bg-stone-900 border border-stone-800 text-xs">
+                        <div>
+                            <h5 class="font-bold">${edu.degree}</h5>
+                            <p class="text-[10px] text-stone-400">${edu.school}</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="editEdu('${edu.id}')" class="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-stone-200">Edit</button>
+                            <button onclick="deleteDocument('education', '${edu.id}')" class="px-2.5 py-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30">Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+            } else if (col === 'courses') {
+                const container = document.getElementById('admin-courses-list');
+                if (!container) return;
+                container.innerHTML = localDb.courses.map(c => `
+                    <div class="flex items-center justify-between p-3 rounded-xl bg-stone-900 border border-stone-800 text-xs">
+                        <div>
+                            <h5 class="font-bold">${c.title}</h5>
+                            <p class="text-[10px] text-stone-400">${c.issuer}</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="editCourse('${c.id}')" class="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-stone-200">Edit</button>
+                            <button onclick="deleteDocument('courses', '${c.id}')" class="px-2.5 py-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30">Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        // Form Helpers
+        window.editProject = function(id) {
+            const item = localDb.projects.find(p => p.id === id);
+            if (!item) return;
+            document.getElementById('proj-form-id').value = item.id;
+            document.getElementById('proj-title').value = item.title || '';
+            document.getElementById('proj-stack').value = (item.stack || []).join(', ');
+            document.getElementById('proj-live').value = item.live || '';
+            document.getElementById('proj-github').value = item.github || '';
+            document.getElementById('proj-desc').value = item.description || '';
+            document.getElementById('proj-cover-url').value = item.cover || '';
+        };
+
+        window.resetProjectForm = function() {
+            document.getElementById('proj-form-id').value = '';
+            document.getElementById('proj-title').value = '';
+            document.getElementById('proj-stack').value = '';
+            document.getElementById('proj-live').value = '';
+            document.getElementById('proj-github').value = '';
+            document.getElementById('proj-desc').value = '';
+            document.getElementById('proj-cover-url').value = '';
+        };
+
+        window.editExp = function(id) {
+            const item = localDb.experience.find(e => e.id === id);
+            if (!item) return;
+            document.getElementById('exp-form-id').value = item.id;
+            document.getElementById('exp-title').value = item.title || '';
+            document.getElementById('exp-company').value = item.company || '';
+            document.getElementById('exp-duration').value = item.duration || '';
+            document.getElementById('exp-type').value = item.type || '';
+            document.getElementById('exp-logo-url').value = item.logo || '';
+            document.getElementById('exp-desc').value = item.description || '';
+        };
+
+        window.resetExpForm = function() {
+            document.getElementById('exp-form-id').value = '';
+            document.getElementById('exp-title').value = '';
+            document.getElementById('exp-company').value = '';
+            document.getElementById('exp-duration').value = '';
+            document.getElementById('exp-type').value = '';
+            document.getElementById('exp-logo-url').value = '';
+            document.getElementById('exp-desc').value = '';
+        };
+
+        window.editEdu = function(id) {
+            const item = localDb.education.find(e => e.id === id);
+            if (!item) return;
+            document.getElementById('edu-form-id').value = item.id;
+            document.getElementById('edu-step-label').value = item.stepLabel || '';
+            document.getElementById('edu-degree').value = item.degree || '';
+            document.getElementById('edu-school').value = item.school || '';
+            document.getElementById('edu-dates').value = item.dates || '';
+            document.getElementById('edu-logo-url').value = item.logo || '';
+            document.getElementById('edu-desc').value = item.description || '';
+        };
+
+        window.resetEduForm = function() {
+            document.getElementById('edu-form-id').value = '';
+            document.getElementById('edu-step-label').value = '';
+            document.getElementById('edu-degree').value = '';
+            document.getElementById('edu-school').value = '';
+            document.getElementById('edu-dates').value = '';
+            document.getElementById('edu-logo-url').value = '';
+            document.getElementById('edu-desc').value = '';
+        };
+
+        window.editCourse = function(id) {
+            const item = localDb.courses.find(c => c.id === id);
+            if (!item) return;
+            document.getElementById('course-form-id').value = item.id;
+            document.getElementById('course-title').value = item.title || '';
+            document.getElementById('course-issuer').value = item.issuer || '';
+            document.getElementById('course-spec').value = item.spec || '';
+            document.getElementById('course-link').value = item.link || '';
+            document.getElementById('course-logo-url').value = item.logo || '';
+        };
+
+        window.resetCourseForm = function() {
+            document.getElementById('course-form-id').value = '';
+            document.getElementById('course-title').value = '';
+            document.getElementById('course-issuer').value = '';
+            document.getElementById('course-spec').value = '';
+            document.getElementById('course-link').value = '';
+            document.getElementById('course-logo-url').value = '';
+        };
+
+        window.handleGalleryUpload = async function(event) {
+            const file = event.target.files[0];
+            if (!file || !user) return;
+
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async (e) => {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = async () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    const maxDim = 800;
+
+                    if (width > height && width > maxDim) {
+                        height = Math.round((height * maxDim) / width);
+                        width = maxDim;
+                    } else if (height > maxDim) {
+                        width = Math.round((width * maxDim) / height);
+                        height = maxDim;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const compressedUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+                    await addDoc(getCollectionRef('gallery'), { url: compressedUrl, caption: file.name });
+                };
+            };
+        };
+
+        // Admin Auth Flow
+        window.handleAdminAuth = function(event) {
+            event.preventDefault();
+            const input = document.getElementById('admin-passcode-input').value;
+            if (input) {
+                isAdminLoggedIn = true;
+                const status = document.getElementById('admin-login-status');
+                status.classList.remove('hidden');
+                
+                document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+                document.getElementById('admin-live-bar').classList.remove('hidden');
+
+                setTimeout(() => {
+                    status.classList.add('hidden');
+                    closeModal('admin-modal');
+                    openAdminPortal();
+                }, 800);
+            }
+        };
+
+        window.logoutAdmin = function() {
+            isAdminLoggedIn = false;
+            document.querySelectorAll('.admin-only').forEach(el => el.classList.add('hidden'));
+            document.getElementById('admin-live-bar').classList.add('hidden');
+            closeModal('admin-dashboard-modal');
+        };
+
+        window.openAdminPortal = function() {
+            document.getElementById('admin-dashboard-modal').classList.remove('hidden');
+        };
+
+        window.adminManage = function(tabName) {
+            if (!isAdminLoggedIn) {
+                openAdminAuthModal();
+            } else {
+                switchAdminTab(tabName);
+                openAdminPortal();
+            }
+        };
+
+        window.switchAdminTab = function(tabName) {
+            document.querySelectorAll('.admin-tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.admin-tab-btn').forEach(el => {
+                el.classList.remove('bg-amber-500/20', 'text-amber-400', 'border', 'border-amber-500/30');
+                el.classList.add('bg-stone-500/10', 'text-stone-400');
+            });
+
+            const activeTab = document.getElementById(`admin-tab-${tabName}`);
+            const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+
+            if (activeTab) activeTab.classList.remove('hidden');
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-stone-500/10', 'text-stone-400');
+                activeBtn.classList.add('bg-amber-500/20', 'text-amber-400', 'border', 'border-amber-500/30');
+            }
+        };
+
+        initAuth();
+    </script>
+
+    <!-- UI INTERACTION LOGIC & HELPER FUNCTIONS -->
+    <script>
+        // 1. Theme Toggle
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        if (themeToggleBtn) {
+            themeToggleBtn.addEventListener('click', () => {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.classList.add('light');
+                    localStorage.setItem('theme', 'light');
+                } else {
+                    document.documentElement.classList.remove('light');
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                }
+            });
+        }
+
+        // 2. Splash Screen Transition
+        window.addEventListener('load', () => {
+            const splashScreen = document.getElementById('splash-screen');
+            const splashLogo = document.getElementById('splash-logo');
+            const navBrandTarget = document.getElementById('nav-brand-target');
+
+            if (splashScreen && splashLogo && navBrandTarget) {
+                setTimeout(() => {
+                    splashLogo.style.transform = 'translateY(-40vh) scale(0.35)';
+                    splashLogo.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        splashScreen.style.opacity = '0';
+                        splashScreen.style.visibility = 'hidden';
+                        navBrandTarget.classList.remove('opacity-0');
+                        navBrandTarget.classList.add('opacity-100');
+                    }, 600);
+                }, 800);
+            }
+        });
+
+        // 3. Mobile Navigation Drawer Toggle
+        const mobileBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        if (mobileBtn && mobileMenu) {
+            mobileBtn.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+                mobileMenu.classList.toggle('flex');
+            });
+        }
+
+        document.querySelectorAll('.mobile-nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                if (mobileMenu) {
+                    mobileMenu.classList.add('hidden');
+                    mobileMenu.classList.remove('flex');
+                }
+            });
+        });
+
+        // 4. Floating Geometrical Background Shapes Generator
+        const geoContainer = document.getElementById('geo-container');
+        const shapeSVGs = [
+            `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>`,
+            `<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5" stroke-dasharray="2 2"/></svg>`,
+            `<svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M12 2L2 22h20L12 2z"/><path d="M12 2v20"/></svg>`,
+            `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg>`
+        ];
+
+        function initGeometrics() {
+            if (!geoContainer) return;
+            for (let i = 0; i < 14; i++) {
+                const shape = document.createElement('div');
+                shape.className = 'geo-shape text-stone-500/40 dark:text-stone-400/30';
+                shape.innerHTML = shapeSVGs[i % shapeSVGs.length];
+                
+                const top = Math.random() * 90 + 5;
+                const left = Math.random() * 90 + 5;
+                const scale = (Math.random() * 0.6 + 0.8).toFixed(2);
+                
+                shape.style.top = `${top}%`;
+                shape.style.left = `${left}%`;
+                shape.style.transform = `scale(${scale}) rotate(${Math.floor(Math.random() * 360)}deg)`;
+                
+                geoContainer.appendChild(shape);
+            }
+        }
+        initGeometrics();
+
+        // 5. Modal Controllers
+        function openModal(title, link) {
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+            const generalModal = document.getElementById('general-modal');
+            
+            if (modalTitle && modalBody && generalModal) {
+                modalTitle.innerText = title;
+                modalBody.innerHTML = `
+                    <p class="mb-4">Access official document file for ${title}.</p>
+                    <a href="${link}" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-stone-900 text-stone-100 dark:bg-stone-100 dark:text-stone-900 font-medium">
+                        Download Document <i data-lucide="download" class="w-4 h-4"></i>
+                    </a>
+                `;
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+                generalModal.classList.remove('hidden');
+            }
+        }
+
+        function openGalleryModal() {
+            const galleryModal = document.getElementById('gallery-modal');
+            if (galleryModal) galleryModal.classList.remove('hidden');
+        }
+
+        function openAdminAuthModal() {
+            const adminModal = document.getElementById('admin-modal');
+            if (adminModal) adminModal.classList.remove('hidden');
+        }
+
+        function openProjectGallery(title, images) {
+            const projTitle = document.getElementById('project-gallery-title');
+            const container = document.getElementById('project-gallery-container');
+            const projModal = document.getElementById('project-gallery-modal');
+
+            if (projTitle && container && projModal) {
+                projTitle.innerText = title + " — Media Showcase";
+                container.innerHTML = images.map(img => `
+                    <div class="rounded-2xl overflow-hidden aspect-video bg-stone-800">
+                        <img src="${img}" class="w-full h-full object-cover filter grayscale hover:grayscale-0 transition-all duration-300"/>
+                    </div>
+                `).join('');
+                projModal.classList.remove('hidden');
+            }
+        }
+
+        function closeModal(id) {
+            const elem = document.getElementById(id);
+            if (elem) elem.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
