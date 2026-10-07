@@ -139,6 +139,20 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
   const brandRef = useRef(null);
 
   useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const syncSystemTheme = () => {
+      const stored = localStorage.getItem("theme");
+      if (stored === "light" || stored === "dark") return;
+      const theme = mq.matches ? "dark" : "light";
+      document.documentElement.classList.remove("dark", "light");
+      document.documentElement.classList.add(theme);
+    };
+    syncSystemTheme();
+    mq.addEventListener("change", syncSystemTheme);
+    return () => mq.removeEventListener("change", syncSystemTheme);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     let settled = false;
     let startTimer;

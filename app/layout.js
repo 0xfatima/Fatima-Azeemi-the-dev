@@ -6,11 +6,11 @@ export const metadata = {
     "Crafting clean, minimalistic web interfaces and scalable backend architectures with deep precision and minimalist design principles.",
 };
 
-const themeScript = `(function(){try{var t=localStorage.getItem('theme')||'dark';var r=document.documentElement;r.classList.remove('dark','light');r.classList.add(t==='light'?'light':'dark');}catch(e){}})();`;
+const themeScript = `(function(){try{function resolveTheme(){var s=localStorage.getItem('theme');if(s==='light'||s==='dark')return s;return window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}var t=resolveTheme();var r=document.documentElement;r.classList.remove('dark','light');r.classList.add(t==='light'?'light':'dark');}catch(e){}})();`;
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
