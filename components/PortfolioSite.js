@@ -27,8 +27,11 @@ import {
   X,
 } from "lucide-react";
 import AdminDashboard from "@/components/AdminDashboard";
+import PixelPortrait from "@/components/PixelPortrait";
 import { api, compressGalleryImage } from "@/lib/client";
 
+// Swap this for your own photo (e.g. drop it in /public and use "/portrait.jpg").
+// External hosts must allow CORS so the pixel effect can read the image.
 const portrait = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80";
 const DEFAULT_ALT = "Fatima Azeemi AI Engineer";
 
@@ -494,9 +497,8 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
       <main className="relative z-10 pt-28">
         <section id="hero" className="min-h-[85vh] flex flex-col items-center justify-center text-center px-4 sm:px-8 relative">
           <div className="max-w-4xl mx-auto space-y-6">
-            <div className="hero-shadow-wrapper my-4">
-              <img src={portrait} alt={DEFAULT_ALT} className="hero-shadow-img-back w-48 h-48 sm:w-60 sm:h-60 rounded-full object-cover" />
-              <img src={portrait} alt={DEFAULT_ALT} className="hero-shadow-img-front w-48 h-48 sm:w-60 sm:h-60 rounded-full object-cover border-2 border-stone-400/20 shadow-2xl" />
+            <div className="my-4 flex justify-center">
+              <PixelPortrait src={portrait} alt={DEFAULT_ALT} start={brandOn} className="w-48 h-48 sm:w-60 sm:h-60" />
             </div>
             <div>
               <span className="text-xs sm:text-sm font-mono tracking-widest uppercase text-cream-muted dark:text-dark-muted">

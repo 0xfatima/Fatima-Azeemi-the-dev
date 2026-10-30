@@ -111,32 +111,34 @@ html.light .glass-panel {
   animation: marquee-reverse 28s linear infinite;
 }
 
-.hero-shadow-wrapper {
+.pixel-portrait {
   position: relative;
-  display: inline-block;
+  border-radius: 1.25rem;
+  overflow: hidden;
+  border: 4px solid #f3e0a8;
+  transform-origin: center center;
+  will-change: transform, opacity, filter;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.06),
+    0 18px 50px -12px rgba(16, 44, 68, 0.45),
+    0 0 60px -10px rgba(200, 38, 44, 0.25);
 }
 
-.hero-shadow-img-back {
-  position: absolute;
-  top: 0;
-  left: 20px;
-  opacity: 0.35;
-  filter: grayscale(100%) contrast(120%) blur(1px);
-  transform: scale(1.05) translateX(-25px);
-  mix-blend-mode: screen;
-  transition: all 0.5s ease;
+.pixel-portrait canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
-html.light .hero-shadow-img-back {
-  mix-blend-mode: multiply;
-  opacity: 0.25;
+html.dark .pixel-portrait {
+  border-color: #e9d59b;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 18px 60px -12px rgba(0, 0, 0, 0.7),
+    0 0 70px -10px rgba(200, 38, 44, 0.3);
 }
 
-.hero-shadow-img-front {
-  position: relative;
-  z-index: 2;
-  filter: grayscale(100%) contrast(110%);
-  transition: all 0.5s ease;
+.pixel-portrait--fallback img {
+  filter: grayscale(100%) contrast(115%);
 }
 
 #splash-screen {
