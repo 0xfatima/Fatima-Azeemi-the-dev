@@ -1,0 +1,804 @@
+diff --git a/app/error.js b/app/error.js
+new file mode 100644
+index 0000000..aed8a25
+--- /dev/null
++++ b/app/error.js
+@@ -0,0 +1,15 @@
++"use client";
++
++export default function Error({ reset }) {
++  return (
++    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, fontFamily: "system-ui, sans-serif", textAlign: "center" }}>
++      <div>
++        <h1 style={{ fontSize: 24, marginBottom: 8 }}>Something went wrong</h1>
++        <p style={{ opacity: 0.7, marginBottom: 16 }}>Please try again in a moment.</p>
++        <button onClick={() => reset()} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid currentColor", background: "transparent", color: "inherit", cursor: "pointer" }}>
++          Try again
++        </button>
++      </div>
++    </main>
++  );
++}
+diff --git a/app/globals.css b/app/globals.css
+index e48463b..417cbed 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -111,34 +111,160 @@ html.light .glass-panel {
+   animation: marquee-reverse 28s linear infinite;
+ }
+ 
+-.pixel-portrait {
+-  position: relative;
+-  border-radius: 1.25rem;
++/* Full-bleed pixel portrait behind the hero text. */
++.pixel-bg {
++  position: absolute;
++  pointer-events: none;
+   overflow: hidden;
+-  border: 4px solid #f3e0a8;
+-  transform-origin: center center;
++  z-index: 0;
++}
++
++/* The mask lives on the scaling layer so even the small tile has soft edges. */
++.pixel-bg__layer,
++.pixel-bg__fallback {
++  -webkit-mask-image: var(--pixel-mask);
++  mask-image: var(--pixel-mask);
++}
++
++.pixel-bg__layer {
++  position: absolute;
++  inset: 0;
++  transform-origin: 50% 45%;
+   will-change: transform, opacity, filter;
+-  box-shadow:
+-    0 0 0 1px rgba(0, 0, 0, 0.06),
+-    0 18px 50px -12px rgba(16, 44, 68, 0.45),
+-    0 0 60px -10px rgba(200, 38, 44, 0.25);
+ }
+ 
+-.pixel-portrait canvas {
++.pixel-bg.is-blended .pixel-bg__layer {
++  opacity: 0.55;
++}
++
++/* On the light page the colours print onto the paper like ink. */
++html:not(.dark) .pixel-bg__layer {
++  mix-blend-mode: multiply;
++}
++
++html.dark .pixel-bg.is-blended .pixel-bg__layer {
++  opacity: 0.42;
++}
++
++.pixel-bg__canvas,
++.pixel-bg__fallback {
++  display: block;
++  width: 100%;
++  height: 100%;
+   image-rendering: pixelated;
+   image-rendering: crisp-edges;
+ }
+ 
+-html.dark .pixel-portrait {
+-  border-color: #e9d59b;
+-  box-shadow:
+-    0 0 0 1px rgba(255, 255, 255, 0.05),
+-    0 18px 60px -12px rgba(0, 0, 0, 0.7),
+-    0 0 70px -10px rgba(200, 38, 44, 0.3);
++.pixel-bg__fallback {
++  object-fit: contain;
++  object-position: 50% 100%;
++  filter: grayscale(100%) contrast(115%);
++  opacity: 0.35;
+ }
+ 
+-.pixel-portrait--fallback img {
+-  filter: grayscale(100%) contrast(115%);
++/* Landing on #hero (logo / About link) lines up with the very top of the page,
++   and other sections clear the floating header. */
++#hero {
++  scroll-margin-top: 7rem;
++}
++
++section[id]:not(#hero) {
++  scroll-margin-top: 5.5rem;
++}
++
++/* Progressive blur scrim: stacked backdrop blurs, each masked a little tighter,
++   so the pixel detail behind the words melts smoothly (no visible box edge)
++   while the blue/red colour still shows through. Fades in with the blend. */
++.hero-scrim {
++  --scrim-tint: 251, 249, 245;
++  position: absolute;
++  inset: 0;
++  z-index: 1;
++  pointer-events: none;
++  opacity: 0;
++  transition: opacity 1.4s ease;
++}
++
++html.dark .hero-scrim {
++  --scrim-tint: 18, 18, 18;
++}
++
++.pixel-bg.is-blending + .hero-scrim,
++.pixel-bg.is-blended + .hero-scrim {
++  opacity: 1;
++}
++
++.hero-scrim i {
++  position: absolute;
++  inset: 0;
++}
++
++.hero-scrim i:nth-child(1) {
++  -webkit-backdrop-filter: blur(1px);
++  backdrop-filter: blur(1px);
++  -webkit-mask-image: radial-gradient(ellipse 46% 36% at 50% 52%, #000 30%, transparent 100%);
++  mask-image: radial-gradient(ellipse 46% 36% at 50% 52%, #000 30%, transparent 100%);
++}
++
++.hero-scrim i:nth-child(2) {
++  -webkit-backdrop-filter: blur(3px);
++  backdrop-filter: blur(3px);
++  -webkit-mask-image: radial-gradient(ellipse 40% 31% at 50% 52%, #000 30%, transparent 100%);
++  mask-image: radial-gradient(ellipse 40% 31% at 50% 52%, #000 30%, transparent 100%);
++}
++
++.hero-scrim i:nth-child(3) {
++  -webkit-backdrop-filter: blur(5px);
++  backdrop-filter: blur(5px);
++  -webkit-mask-image: radial-gradient(ellipse 35% 27% at 50% 52%, #000 30%, transparent 100%);
++  mask-image: radial-gradient(ellipse 35% 27% at 50% 52%, #000 30%, transparent 100%);
++}
++
++/* Last layer: strongest blur plus a wash of page colour right behind the words. */
++.hero-scrim i:nth-child(4) {
++  -webkit-backdrop-filter: blur(8px) saturate(0.85);
++  backdrop-filter: blur(8px) saturate(0.85);
++  background: radial-gradient(ellipse 36% 28% at 50% 52%, rgba(var(--scrim-tint), 0.5) 0%, rgba(var(--scrim-tint), 0.28) 55%, rgba(var(--scrim-tint), 0) 100%);
++  -webkit-mask-image: radial-gradient(ellipse 36% 28% at 50% 52%, #000 35%, transparent 100%);
++  mask-image: radial-gradient(ellipse 36% 28% at 50% 52%, #000 35%, transparent 100%);
++}
++
++@media (max-width: 640px) {
++  .hero-scrim i:nth-child(n) {
++    -webkit-mask-image: radial-gradient(ellipse 85% 30% at 50% 50%, #000 35%, transparent 100%);
++    mask-image: radial-gradient(ellipse 85% 30% at 50% 50%, #000 35%, transparent 100%);
++  }
++}
++
++/* Halo: a thin page-coloured outline painted under each letter plus a soft
++   glow, so every glyph keeps its edge on any colour behind it. */
++.hero-copy {
++  --halo: 251, 249, 245;
++}
++
++html.dark .hero-copy {
++  --halo: 18, 18, 18;
++}
++
++.hero-copy h1,
++.hero-copy .font-heading,
++.hero-copy p,
++.hero-kicker {
++  paint-order: stroke fill;
++  -webkit-text-stroke: 0.06em rgba(var(--halo), 0.55);
++  text-shadow:
++    0 0 0.12em rgba(var(--halo), 0.9),
++    0 0 0.45em rgba(var(--halo), 0.7),
++    0 0 1.2em rgba(var(--halo), 0.45);
++}
++
++.hero-copy p,
++.hero-kicker {
++  -webkit-text-stroke: 0;
++  text-shadow:
++    0 0 2px rgba(var(--halo), 1),
++    0 0 8px rgba(var(--halo), 0.9),
++    0 0 18px rgba(var(--halo), 0.7);
+ }
+ 
+ #splash-screen {
+diff --git a/components/PixelPortrait.js b/components/PixelPortrait.js
+index 5831413..363f26b 100644
+--- a/components/PixelPortrait.js
++++ b/components/PixelPortrait.js
+@@ -3,14 +3,15 @@
+ import { useEffect, useRef, useState } from "react";
+ 
+ /*
+- * Turns a normal photo into a pixel-art "poster" portrait:
+- *  - the photo is sampled down to a coarse grid of square cells
+- *  - each cell is mapped to a 4-tone poster palette by brightness
+- *  - mid tones are split blue (left) / red (right), so the photo's own
+- *    background dissolves into the same split backdrop as the figure
++ * Full-bleed pixel-art hero background, made from any photo.
+  *
+- * Reveal: the tile starts small, transparent and very blocky, then grows to
+- * its full size while the pixel grid refines to its final resolution.
++ *  1. The photo is mapped to a pixel grid in a blue (left) / red (right)
++ *     poster palette. Its own backdrop is detected and recoloured, and any
++ *     space beside the photo is filled with the same blue/red backdrop, so
++ *     every image gets the split background automatically.
++ *  2. Reveal: it starts as a small, very blocky tile, grows until it fills
++ *     the whole hero while the pixels refine, then softens and fades its
++ *     edges so it settles into the page as if it were the background.
+  */
+ 
+ const PALETTE = {
+@@ -22,46 +23,43 @@ const PALETTE = {
+   cream: [243, 224, 168],
+ };
+ 
+-const FINAL_CELLS = 44; // pixels across the finished portrait
+-const STEPS = [5, 8, 12, 17, 23, 30, 37, FINAL_CELLS];
+-const DURATION = 2400; // ms
+-const RENDER_SIZE = 480; // backing canvas resolution (2x for retina)
++const GROW_MS = 2400; // small → full size, pixels refining
++const BLEND_MS = 1400; // full size → blended into the page
++const STEPS = [0.07, 0.11, 0.16, 0.23, 0.32, 0.44, 0.6, 0.8, 1];
++const START_SCALE = 0.2;
+ 
+ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+-
+-function rgb([r, g, b]) {
+-  return `rgb(${r},${g},${b})`;
+-}
++const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
++const lerp = (a, b, t) => a + (b - a) * t;
++const rgb = ([r, g, b]) => `rgb(${r},${g},${b})`;
+ 
+ function pickColor(lum, xRatio) {
+-  const left = xRatio < 0.52;
++  const left = xRatio < 0.5;
+   if (lum < 0.24) return PALETTE.navy;
+   if (lum < 0.46) return left ? PALETTE.blueDark : PALETTE.redDark;
+   if (lum < 0.74) return left ? PALETTE.blueLight : PALETTE.red;
+   return PALETTE.cream;
+ }
+ 
+-/** Centre-crop the image into a square and return a canvas we can sample from. */
++const backdropColor = (xRatio) => (xRatio < 0.5 ? PALETTE.blueLight : PALETTE.red);
++
++/** Square, face-biased crop used only to measure the photo's tones. */
+ function squareSource(img) {
+   const size = Math.min(img.naturalWidth, img.naturalHeight);
+   const sx = (img.naturalWidth - size) / 2;
+-  // Bias the crop slightly upwards so faces stay in frame on tall photos.
+   const sy = Math.max(0, (img.naturalHeight - size) * 0.3);
+   const canvas = document.createElement("canvas");
+   canvas.width = 256;
+   canvas.height = 256;
+-  const ctx = canvas.getContext("2d");
++  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+   ctx.imageSmoothingQuality = "high";
+   ctx.drawImage(img, sx, sy, size, size, 0, 0, 256, 256);
+   return canvas;
+ }
+ 
+-/**
+- * Brightness percentiles (so tones adapt to any photo's exposure) plus an
+- * estimate of the backdrop colour, sampled from the top and side edges.
+- */
++/** Brightness range (adapts to any exposure) and the photo's backdrop colour. */
+ function measureLevels(source) {
+-  const ctx = source.getContext("2d");
++  const ctx = source.getContext("2d", { willReadFrequently: true });
+   const { width, height } = source;
+   const { data } = ctx.getImageData(0, 0, width, height);
+   const values = [];
+@@ -72,7 +70,6 @@ function measureLevels(source) {
+   const lo = values[Math.floor(values.length * 0.04)];
+   const hi = values[Math.floor(values.length * 0.96)];
+ 
+-  // Edge ring: top band + left/right bands down to 70% height (skip shoulders).
+   const band = Math.round(width * 0.06);
+   const samples = [];
+   for (let y = 0; y < height * 0.7; y += 2) {
+@@ -92,26 +89,52 @@ function measureLevels(source) {
+     lo,
+     range: Math.max(0.08, hi - lo),
+     bg: mean,
+-    // A busy backdrop (high spread) gets no special treatment.
+     bgThreshold: spread < 70 ? Math.max(38, spread * 2.2) : 0,
+   };
+ }
+ 
+ /**
+- * Flood-fill from the edges over cells that look like the backdrop. Growth
+- * follows gradual drift (vignettes, gradient walls): a cell joins if it is
+- * close to the edge colour, or close to the backdrop cell it grows from while
+- * staying within a looser global limit.
++ * Lay the photo onto a canvas with the hero's aspect ratio. The whole photo
++ * stays visible (contain); the space around it is painted in the photo's own
++ * backdrop colour so it reads as one continuous background.
+  */
+-function backgroundMask(data, cells, levels) {
+-  const mask = new Uint8Array(cells * cells);
+-  if (!levels.bgThreshold) return mask;
++function layoutSource(img, levels, aspect) {
++  const h = 256;
++  const w = Math.max(64, Math.min(1024, Math.round(h * aspect)));
++  const canvas = document.createElement("canvas");
++  canvas.width = w;
++  canvas.height = h;
++  const ctx = canvas.getContext("2d", { willReadFrequently: true });
++  ctx.fillStyle = rgb(levels.bg.map(Math.round));
++  ctx.fillRect(0, 0, w, h);
++
++  const scale = Math.min(w / img.naturalWidth, h / img.naturalHeight);
++  const dw = img.naturalWidth * scale;
++  const dh = img.naturalHeight * scale;
++  const dx = (w - dw) / 2;
++  const dy = h - dh; // sit on the bottom edge, like a portrait in frame
++  ctx.imageSmoothingQuality = "high";
++  ctx.drawImage(img, dx, dy, dw, dh);
++
++  return { canvas, rect: { x0: dx / w, x1: (dx + dw) / w, y0: dy / h, y1: 1 } };
++}
++
++/** Cells outside the photo, plus the photo's own backdrop (flood-filled). */
++function backgroundMask(data, cols, rows, levels, rect) {
++  const mask = new Uint8Array(cols * rows);
++  const outside = (x, y) => {
++    const fx = (x + 0.5) / cols;
++    const fy = (y + 0.5) / rows;
++    return fx < rect.x0 || fx > rect.x1 || fy < rect.y0;
++  };
+   const thr = levels.bgThreshold;
+-  const dist = (i, r, g, b) => Math.sqrt((data[i] - r) ** 2 + (data[i + 1] - g) ** 2 + (data[i + 2] - b) ** 2);
+   const [br, bgG, bb] = levels.bg;
++  const dist = (i, r, g, b) => Math.sqrt((data[i] - r) ** 2 + (data[i + 1] - g) ** 2 + (data[i + 2] - b) ** 2);
+ 
+-  const accepts = (idx, fromIdx) => {
+-    const i = idx * 4;
++  const accepts = (x, y, fromIdx) => {
++    if (outside(x, y)) return true;
++    if (!thr) return false;
++    const i = (y * cols + x) * 4;
+     const dGlobal = dist(i, br, bgG, bb);
+     if (dGlobal < thr) return true;
+     if (fromIdx < 0 || dGlobal > thr * 2.2) return false;
+@@ -121,84 +144,104 @@ function backgroundMask(data, cells, levels) {
+ 
+   const queue = [];
+   const visit = (x, y, fromIdx) => {
+-    const idx = y * cells + x;
+-    if (!mask[idx] && accepts(idx, fromIdx)) {
++    const idx = y * cols + x;
++    if (!mask[idx] && accepts(x, y, fromIdx)) {
+       mask[idx] = 1;
+       queue.push(idx);
+     }
+   };
+-  for (let x = 0; x < cells; x += 1) visit(x, 0, -1);
+-  for (let y = 0; y < cells; y += 1) {
++  for (let x = 0; x < cols; x += 1) visit(x, 0, -1);
++  for (let y = 0; y < rows; y += 1) {
+     visit(0, y, -1);
+-    visit(cells - 1, y, -1);
++    visit(cols - 1, y, -1);
+   }
+   while (queue.length) {
+     const idx = queue.pop();
+-    const x = idx % cells;
+-    const y = (idx - x) / cells;
++    const x = idx % cols;
++    const y = (idx - x) / cols;
+     if (x > 0) visit(x - 1, y, idx);
+-    if (x < cells - 1) visit(x + 1, y, idx);
++    if (x < cols - 1) visit(x + 1, y, idx);
+     if (y > 0) visit(x, y - 1, idx);
+-    if (y < cells - 1) visit(x, y + 1, idx);
++    if (y < rows - 1) visit(x, y + 1, idx);
+   }
+   return mask;
+ }
+ 
+-function drawPoster(target, source, levels, cells) {
++function finalCols(width) {
++  // Around 14px per pixel on desktop, a little finer on phones.
++  const cell = width < 640 ? 10 : 14;
++  return Math.max(28, Math.min(120, Math.round(width / cell)));
++}
++
++function drawPoster(canvas, layout, levels, cols) {
++  const { width: W, height: H } = canvas;
++  const rows = Math.max(3, Math.round((cols * H) / W));
++
+   const small = document.createElement("canvas");
+-  small.width = cells;
+-  small.height = cells;
++  small.width = cols;
++  small.height = rows;
+   const sctx = small.getContext("2d", { willReadFrequently: true });
+   sctx.imageSmoothingEnabled = true;
+   sctx.imageSmoothingQuality = "high";
+-  sctx.drawImage(source, 0, 0, cells, cells);
+-  const { data } = sctx.getImageData(0, 0, cells, cells);
+-  const bgMask = backgroundMask(data, cells, levels);
++  sctx.drawImage(layout.canvas, 0, 0, cols, rows);
++  const { data } = sctx.getImageData(0, 0, cols, rows);
++  const bgMask = backgroundMask(data, cols, rows, levels, layout.rect);
+ 
+-  const ctx = target.getContext("2d");
+-  const cell = RENDER_SIZE / cells;
+-  ctx.clearRect(0, 0, RENDER_SIZE, RENDER_SIZE);
++  const ctx = canvas.getContext("2d");
++  const cw = W / cols;
++  const ch = H / rows;
++  ctx.clearRect(0, 0, W, H);
+ 
+-  for (let y = 0; y < cells; y += 1) {
+-    for (let x = 0; x < cells; x += 1) {
+-      const idx = y * cells + x;
++  for (let y = 0; y < rows; y += 1) {
++    for (let x = 0; x < cols; x += 1) {
++      const idx = y * cols + x;
+       const i = idx * 4;
+-      const xRatio = (x + 0.5) / cells;
++      const xRatio = (x + 0.5) / cols;
++      let color;
+       if (bgMask[idx]) {
+-        // Backdrop: flat split poster background (blue left, red right).
+-        ctx.fillStyle = rgb(xRatio < 0.52 ? PALETTE.blueLight : PALETTE.red);
+-        ctx.fillRect(Math.floor(x * cell), Math.floor(y * cell), Math.ceil(cell) + 1, Math.ceil(cell) + 1);
+-        continue;
++        color = backdropColor(xRatio);
++      } else {
++        const raw = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255;
++        const lum = Math.min(1, Math.max(0, (raw - levels.lo) / levels.range));
++        color = pickColor(lum, xRatio);
+       }
+-      const raw = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255;
+-      const lum = Math.min(1, Math.max(0, (raw - levels.lo) / levels.range));
+-      ctx.fillStyle = rgb(pickColor(lum, xRatio));
+-      // Overlap by a hair so no seams appear between cells.
+-      ctx.fillRect(Math.floor(x * cell), Math.floor(y * cell), Math.ceil(cell) + 1, Math.ceil(cell) + 1);
++      ctx.fillStyle = rgb(color);
++      ctx.fillRect(Math.floor(x * cw), Math.floor(y * ch), Math.ceil(cw) + 1, Math.ceil(ch) + 1);
+     }
+   }
+ 
+-  // Faint pixel grid, like a bead / cross-stitch board.
+-  ctx.strokeStyle = "rgba(0, 0, 0, 0.09)";
++  // Faint bead-board grid.
++  ctx.strokeStyle = "rgba(0, 0, 0, 0.08)";
+   ctx.lineWidth = 1;
+   ctx.beginPath();
+-  for (let n = 1; n < cells; n += 1) {
+-    const p = Math.round(n * cell) + 0.5;
++  for (let n = 1; n < cols; n += 1) {
++    const p = Math.round(n * cw) + 0.5;
+     ctx.moveTo(p, 0);
+-    ctx.lineTo(p, RENDER_SIZE);
++    ctx.lineTo(p, H);
++  }
++  for (let n = 1; n < rows; n += 1) {
++    const p = Math.round(n * ch) + 0.5;
+     ctx.moveTo(0, p);
+-    ctx.lineTo(RENDER_SIZE, p);
++    ctx.lineTo(W, p);
+   }
+   ctx.stroke();
+ }
+ 
++/** Edge fade: hard-edged tile while small, soft vignette once blended. */
++function maskFor(t) {
++  const inner = lerp(55, 38, t);
++  const outer = lerp(100, 92, t);
++  return `radial-gradient(ellipse 62% 60% at 50% 45%, #000 ${inner}%, transparent ${outer}%)`;
++}
++
+ export default function PixelPortrait({ src, alt, start = true, className = "" }) {
+-  const canvasRef = useRef(null);
+   const wrapRef = useRef(null);
+-  const sourceRef = useRef(null);
++  const layerRef = useRef(null);
++  const canvasRef = useRef(null);
++  const prepRef = useRef(null); // { img, levels, layout, aspectKey }
++  const stateRef = useRef({ cols: 0, done: false });
+   const [status, setStatus] = useState("loading"); // loading | ready | failed
+ 
+-  // Load + prepare the photo once.
+   useEffect(() => {
+     let cancelled = false;
+     const img = new Image();
+@@ -207,12 +250,10 @@ export default function PixelPortrait({ src, alt, start = true, className = "" }
+     img.onload = () => {
+       if (cancelled) return;
+       try {
+-        const source = squareSource(img);
+-        sourceRef.current = { source, levels: measureLevels(source) };
++        prepRef.current = { img, levels: measureLevels(squareSource(img)), layout: null, aspectKey: "" };
+         setStatus("ready");
+       } catch {
+-        // Canvas is tainted (image host without CORS) – fall back gracefully.
+-        setStatus("failed");
++        setStatus("failed"); // image host without CORS
+       }
+     };
+     img.onerror = () => !cancelled && setStatus("failed");
+@@ -222,53 +263,86 @@ export default function PixelPortrait({ src, alt, start = true, className = "" }
+     };
+   }, [src]);
+ 
+-  // Run the reveal once the photo is ready and the page says "go".
+   useEffect(() => {
+     if (status !== "ready" || !start) return;
+-    const canvas = canvasRef.current;
+     const wrap = wrapRef.current;
+-    const prepared = sourceRef.current;
+-    if (!canvas || !wrap || !prepared) return;
+-
+-    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+-    if (reduceMotion) {
+-      drawPoster(canvas, prepared.source, prepared.levels, FINAL_CELLS);
+-      wrap.style.transform = "scale(1)";
+-      wrap.style.opacity = "1";
+-      return;
++    const layer = layerRef.current;
++    const canvas = canvasRef.current;
++    const prep = prepRef.current;
++    if (!wrap || !layer || !canvas || !prep) return;
++
++    const render = (fraction) => {
++      const w = Math.max(1, Math.round(wrap.clientWidth));
++      const h = Math.max(1, Math.round(wrap.clientHeight));
++      if (canvas.width !== w || canvas.height !== h) {
++        canvas.width = w;
++        canvas.height = h;
++      }
++      const aspectKey = (w / h).toFixed(2);
++      if (prep.aspectKey !== aspectKey) {
++        prep.layout = layoutSource(prep.img, prep.levels, w / h);
++        prep.aspectKey = aspectKey;
++      }
++      const cols = Math.max(3, Math.round(finalCols(w) * fraction));
++      drawPoster(canvas, prep.layout, prep.levels, cols);
++      stateRef.current.cols = cols;
++    };
++
++    const settle = () => {
++      layer.style.transform = "scale(1)";
++      layer.style.filter = "none";
++      layer.style.opacity = "";
++      wrap.style.setProperty("--pixel-mask", maskFor(1));
++      wrap.classList.add("is-blended");
++      stateRef.current.done = true;
++    };
++
++    const observer = new ResizeObserver(() => {
++      if (stateRef.current.done) render(1);
++    });
++    observer.observe(wrap);
++
++    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
++      render(1);
++      settle();
++      return () => observer.disconnect();
+     }
+ 
+     let frame;
+-    let lastCells = 0;
++    let lastStep = -1;
+     const begin = performance.now();
+-
+     const tick = (now) => {
+-      const t = Math.min(1, (now - begin) / DURATION);
+-      const eased = easeOutCubic(t);
+-
+-      const stepIndex = Math.min(STEPS.length - 1, Math.floor(t * STEPS.length));
+-      const cells = STEPS[stepIndex];
+-      if (cells !== lastCells) {
+-        drawPoster(canvas, prepared.source, prepared.levels, cells);
+-        lastCells = cells;
++      const elapsed = now - begin;
++      const g = Math.min(1, elapsed / GROW_MS);
++      const step = Math.min(STEPS.length - 1, Math.floor(g * STEPS.length));
++      if (step !== lastStep) {
++        render(STEPS[step]);
++        lastStep = step;
+       }
++      const eased = easeOutCubic(g);
++      layer.style.transform = `scale(${lerp(START_SCALE, 1, eased)})`;
++      layer.style.filter = `blur(${(1 - eased) * 4}px)`;
++      const b = easeInOut(Math.min(1, Math.max(0, (elapsed - GROW_MS) / BLEND_MS)));
++      const settled = document.documentElement.classList.contains("dark") ? 0.42 : 0.55;
++      layer.style.opacity = String(Math.min(1, g * 2) * lerp(1, settled, b));
++      wrap.style.setProperty("--pixel-mask", maskFor(b));
++      if (elapsed >= GROW_MS) wrap.classList.add("is-blending");
+ 
+-      wrap.style.transform = `scale(${0.28 + 0.72 * eased})`;
+-      wrap.style.opacity = String(Math.min(1, t * 1.8));
+-      wrap.style.filter = `blur(${(1 - eased) * 6}px)`;
+-
+-      if (t < 1) frame = requestAnimationFrame(tick);
+-      else wrap.style.filter = "none";
++      if (elapsed < GROW_MS + BLEND_MS) frame = requestAnimationFrame(tick);
++      else settle();
+     };
+-
+     frame = requestAnimationFrame(tick);
+-    return () => cancelAnimationFrame(frame);
++
++    return () => {
++      cancelAnimationFrame(frame);
++      observer.disconnect();
++    };
+   }, [status, start]);
+ 
+   if (status === "failed") {
+     return (
+-      <div className={`pixel-portrait pixel-portrait--fallback ${className}`}>
+-        <img src={src} alt={alt} className="w-full h-full object-cover" />
++      <div className={`pixel-bg is-blended ${className}`} aria-hidden="true" style={{ "--pixel-mask": maskFor(1) }}>
++        <img src={src} alt="" className="pixel-bg__fallback" />
+       </div>
+     );
+   }
+@@ -276,17 +350,12 @@ export default function PixelPortrait({ src, alt, start = true, className = "" }
+   return (
+     <div
+       ref={wrapRef}
+-      className={`pixel-portrait ${className}`}
+-      style={{ transform: "scale(0.28)", opacity: 0 }}
++      className={`pixel-bg ${className}`}
++      style={{ "--pixel-mask": maskFor(0) }}
+     >
+-      <canvas
+-        ref={canvasRef}
+-        width={RENDER_SIZE}
+-        height={RENDER_SIZE}
+-        role="img"
+-        aria-label={alt}
+-        className="block w-full h-full"
+-      />
++      <div ref={layerRef} className="pixel-bg__layer" style={{ transform: `scale(${START_SCALE})`, opacity: 0 }}>
++        <canvas ref={canvasRef} role="img" aria-label={alt} className="pixel-bg__canvas" />
++      </div>
+     </div>
+   );
+ }
+diff --git a/components/PortfolioSite.js b/components/PortfolioSite.js
+index 85ac31b..59a56d1 100644
+--- a/components/PortfolioSite.js
++++ b/components/PortfolioSite.js
+@@ -155,6 +155,17 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
+     return () => mq.removeEventListener("change", syncSystemTheme);
+   }, []);
+ 
++  // Always open at the very top so the hero reveal is seen in full: stop the
++  // browser restoring an old scroll position and drop a leftover "#hero".
++  useEffect(() => {
++    if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
++    const hash = window.location.hash;
++    if (!hash || hash === "#hero") {
++      if (hash) window.history.replaceState(null, "", window.location.pathname + window.location.search);
++      window.scrollTo(0, 0);
++    }
++  }, []);
++
+   useEffect(() => {
+     let cancelled = false;
+     let settled = false;
+@@ -496,21 +507,22 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
+ 
+       <main className="relative z-10 pt-28">
+         <section id="hero" className="min-h-[85vh] flex flex-col items-center justify-center text-center px-4 sm:px-8 relative">
+-          <div className="max-w-4xl mx-auto space-y-6">
+-            <div className="my-4 flex justify-center">
+-              <PixelPortrait src={portrait} alt={DEFAULT_ALT} start={brandOn} className="w-48 h-48 sm:w-60 sm:h-60" />
+-            </div>
++          <PixelPortrait src={portrait} alt={DEFAULT_ALT} start={brandOn} className="inset-x-0 -top-28 bottom-0" />
++          <div className="hero-scrim" aria-hidden="true">
++            <i /><i /><i /><i />
++          </div>
++          <div className="hero-copy max-w-4xl mx-auto space-y-6 relative z-10">
+             <div>
+-              <span className="text-xs sm:text-sm font-mono tracking-widest uppercase text-cream-muted dark:text-dark-muted">
++              <span className="hero-kicker text-xs sm:text-sm font-mono font-semibold tracking-widest uppercase text-cream-text dark:text-dark-text">
+                 AI Engineer · LLMs · RAG · Full-Stack
+               </span>
+-              <h1 className="font-heading text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight mt-2">FATIMA AZEEMI</h1>
++              <h1 className="font-heading text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight mt-2 text-cream-text dark:text-dark-text">FATIMA AZEEMI</h1>
+             </div>
+-            <p className="text-xs sm:text-base max-w-xl mx-auto text-cream-muted dark:text-dark-muted leading-relaxed">
++            <p className="text-sm sm:text-base font-medium max-w-xl mx-auto text-cream-text dark:text-dark-text leading-relaxed">
+               Building AI-powered systems & researching new possibilities.
+             </p>
+             <div className="pt-4">
+-              <span className="font-heading font-extrabold text-5xl sm:text-7xl lg:text-8xl tracking-tighter opacity-90 select-none text-stone-800 dark:text-stone-200">
++              <span className="font-heading font-extrabold text-5xl sm:text-7xl lg:text-8xl tracking-tighter select-none text-stone-900 dark:text-stone-100">
+                 Code.
+               </span>
+             </div>
+diff --git a/lib/db.js b/lib/db.js
+index 5be637d..1374b5f 100644
+--- a/lib/db.js
++++ b/lib/db.js
+@@ -117,9 +117,36 @@ export function assertCollection(name) {
+   if (!COLLECTIONS.includes(name)) throw new HttpError(404, "Unknown collection");
+ }
+ 
++// Content shown when the database can't be reached, so the public site never
++// goes down because of a Supabase problem.
++let fallbackDb = null;
++
++function withTimeout(promise, ms) {
++  let timer;
++  return Promise.race([
++    promise,
++    new Promise((_, reject) => {
++      timer = setTimeout(() => reject(new Error(`Supabase timed out after ${ms}ms`)), ms);
++    }),
++  ]).finally(() => clearTimeout(timer));
++}
++
+ export async function getDb() {
+-  if (isSupabaseConfigured()) return readSupabaseDb();
+-  return readJsonDb();
++  if (!isSupabaseConfigured()) return readJsonDb();
++  try {
++    const db = await withTimeout(readSupabaseDb(), 8000);
++    const total = COLLECTIONS.reduce((n, name) => n + db[name].length, 0);
++    if (total > 0) return db;
++    console.warn("[db] Supabase table is empty; showing seed content. Use Admin → Reset/Seed to load it.");
++  } catch (err) {
++    console.error(
++      "[db] Could not read from Supabase; showing seed content instead. " +
++        "Check NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY and that supabase/schema.sql was run.",
++      err?.message || err
++    );
++  }
++  fallbackDb ||= seedData();
++  return fallbackDb;
+ }
+ 
+ export async function resetDb() {
+diff --git a/lib/supabase.js b/lib/supabase.js
+index d41c908..1b89a88 100644
+--- a/lib/supabase.js
++++ b/lib/supabase.js
+@@ -1,10 +1,23 @@
+ import { createClient } from "@supabase/supabase-js";
+ 
++// Env values pasted into Vercel often carry stray spaces, quotes or a
++// trailing slash. Clean them so the client gets a valid URL/key.
++function clean(value) {
++  return (value || "").trim().replace(/^["']|["']$/g, "").trim();
++}
++
++function supabaseUrl() {
++  return clean(process.env.NEXT_PUBLIC_SUPABASE_URL)
++    .replace(/\/rest\/v1\/?$/, "")
++    .replace(/\/+$/, "");
++}
++
++function serviceKey() {
++  return clean(process.env.SUPABASE_SERVICE_ROLE_KEY);
++}
++
+ export function isSupabaseConfigured() {
+-  return Boolean(
+-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+-      process.env.SUPABASE_SERVICE_ROLE_KEY
+-  );
++  return Boolean(supabaseUrl() && serviceKey());
+ }
+ 
+ export function getSupabaseAdmin() {
+@@ -12,8 +25,8 @@ export function getSupabaseAdmin() {
+     throw new Error("Supabase is not configured");
+   }
+   return createClient(
+-    process.env.NEXT_PUBLIC_SUPABASE_URL,
+-    process.env.SUPABASE_SERVICE_ROLE_KEY,
++    supabaseUrl(),
++    serviceKey(),
+     {
+       auth: { persistSession: false, autoRefreshToken: false },
+     }

@@ -162,24 +162,109 @@ html.dark .pixel-bg.is-blended .pixel-bg__layer {
   opacity: 0.35;
 }
 
-/* Soft wash of page colour behind the hero text so it stays readable. */
-.hero-veil {
+/* Landing on #hero (logo / About link) lines up with the very top of the page,
+   and other sections clear the floating header. */
+#hero {
+  scroll-margin-top: 7rem;
+}
+
+section[id]:not(#hero) {
+  scroll-margin-top: 5.5rem;
+}
+
+/* Progressive blur scrim: stacked backdrop blurs, each masked a little tighter,
+   so the pixel detail behind the words melts smoothly (no visible box edge)
+   while the blue/red colour still shows through. Fades in with the blend. */
+.hero-scrim {
+  --scrim-tint: 251, 249, 245;
   position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: 1;
   pointer-events: none;
   opacity: 0;
   transition: opacity 1.4s ease;
-  background: radial-gradient(ellipse 50% 42% at 50% 52%, rgba(251, 249, 245, 0.78) 0%, rgba(251, 249, 245, 0.35) 55%, transparent 80%);
 }
 
-.pixel-bg.is-blending + .hero-veil,
-.pixel-bg.is-blended + .hero-veil {
+html.dark .hero-scrim {
+  --scrim-tint: 18, 18, 18;
+}
+
+.pixel-bg.is-blending + .hero-scrim,
+.pixel-bg.is-blended + .hero-scrim {
   opacity: 1;
 }
 
-html.dark .hero-veil {
-  background: radial-gradient(ellipse 50% 42% at 50% 52%, rgba(18, 18, 18, 0.72) 0%, rgba(18, 18, 18, 0.3) 55%, transparent 80%);
+.hero-scrim i {
+  position: absolute;
+  inset: 0;
+}
+
+.hero-scrim i:nth-child(1) {
+  -webkit-backdrop-filter: blur(1px);
+  backdrop-filter: blur(1px);
+  -webkit-mask-image: radial-gradient(ellipse 46% 36% at 50% 52%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(ellipse 46% 36% at 50% 52%, #000 30%, transparent 100%);
+}
+
+.hero-scrim i:nth-child(2) {
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  -webkit-mask-image: radial-gradient(ellipse 40% 31% at 50% 52%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(ellipse 40% 31% at 50% 52%, #000 30%, transparent 100%);
+}
+
+.hero-scrim i:nth-child(3) {
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+  -webkit-mask-image: radial-gradient(ellipse 35% 27% at 50% 52%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(ellipse 35% 27% at 50% 52%, #000 30%, transparent 100%);
+}
+
+/* Last layer: strongest blur plus a wash of page colour right behind the words. */
+.hero-scrim i:nth-child(4) {
+  -webkit-backdrop-filter: blur(8px) saturate(0.85);
+  backdrop-filter: blur(8px) saturate(0.85);
+  background: radial-gradient(ellipse 36% 28% at 50% 52%, rgba(var(--scrim-tint), 0.5) 0%, rgba(var(--scrim-tint), 0.28) 55%, rgba(var(--scrim-tint), 0) 100%);
+  -webkit-mask-image: radial-gradient(ellipse 36% 28% at 50% 52%, #000 35%, transparent 100%);
+  mask-image: radial-gradient(ellipse 36% 28% at 50% 52%, #000 35%, transparent 100%);
+}
+
+@media (max-width: 640px) {
+  .hero-scrim i:nth-child(n) {
+    -webkit-mask-image: radial-gradient(ellipse 85% 30% at 50% 50%, #000 35%, transparent 100%);
+    mask-image: radial-gradient(ellipse 85% 30% at 50% 50%, #000 35%, transparent 100%);
+  }
+}
+
+/* Halo: a thin page-coloured outline painted under each letter plus a soft
+   glow, so every glyph keeps its edge on any colour behind it. */
+.hero-copy {
+  --halo: 251, 249, 245;
+}
+
+html.dark .hero-copy {
+  --halo: 18, 18, 18;
+}
+
+.hero-copy h1,
+.hero-copy .font-heading,
+.hero-copy p,
+.hero-kicker {
+  paint-order: stroke fill;
+  -webkit-text-stroke: 0.06em rgba(var(--halo), 0.55);
+  text-shadow:
+    0 0 0.12em rgba(var(--halo), 0.9),
+    0 0 0.45em rgba(var(--halo), 0.7),
+    0 0 1.2em rgba(var(--halo), 0.45);
+}
+
+.hero-copy p,
+.hero-kicker {
+  -webkit-text-stroke: 0;
+  text-shadow:
+    0 0 2px rgba(var(--halo), 1),
+    0 0 8px rgba(var(--halo), 0.9),
+    0 0 18px rgba(var(--halo), 0.7);
 }
 
 #splash-screen {

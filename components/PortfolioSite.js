@@ -155,6 +155,17 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
     return () => mq.removeEventListener("change", syncSystemTheme);
   }, []);
 
+  // Always open at the very top so the hero reveal is seen in full: stop the
+  // browser restoring an old scroll position and drop a leftover "#hero".
+  useEffect(() => {
+    if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+    const hash = window.location.hash;
+    if (!hash || hash === "#hero") {
+      if (hash) window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      window.scrollTo(0, 0);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     let settled = false;
@@ -497,19 +508,21 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
       <main className="relative z-10 pt-28">
         <section id="hero" className="min-h-[85vh] flex flex-col items-center justify-center text-center px-4 sm:px-8 relative">
           <PixelPortrait src={portrait} alt={DEFAULT_ALT} start={brandOn} className="inset-x-0 -top-28 bottom-0" />
-          <div className="hero-veil" aria-hidden="true" />
-          <div className="max-w-4xl mx-auto space-y-6 relative z-10">
+          <div className="hero-scrim" aria-hidden="true">
+            <i /><i /><i /><i />
+          </div>
+          <div className="hero-copy max-w-4xl mx-auto space-y-6 relative z-10">
             <div>
-              <span className="text-xs sm:text-sm font-mono tracking-widest uppercase text-cream-muted dark:text-dark-muted">
+              <span className="hero-kicker text-xs sm:text-sm font-mono font-semibold tracking-widest uppercase text-cream-text dark:text-dark-text">
                 AI Engineer · LLMs · RAG · Full-Stack
               </span>
-              <h1 className="font-heading text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight mt-2">FATIMA AZEEMI</h1>
+              <h1 className="font-heading text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight mt-2 text-cream-text dark:text-dark-text">FATIMA AZEEMI</h1>
             </div>
-            <p className="text-xs sm:text-base max-w-xl mx-auto text-cream-muted dark:text-dark-muted leading-relaxed">
+            <p className="text-sm sm:text-base font-medium max-w-xl mx-auto text-cream-text dark:text-dark-text leading-relaxed">
               Building AI-powered systems & researching new possibilities.
             </p>
             <div className="pt-4">
-              <span className="font-heading font-extrabold text-5xl sm:text-7xl lg:text-8xl tracking-tighter opacity-90 select-none text-stone-800 dark:text-stone-200">
+              <span className="font-heading font-extrabold text-5xl sm:text-7xl lg:text-8xl tracking-tighter select-none text-stone-900 dark:text-stone-100">
                 Code.
               </span>
             </div>
