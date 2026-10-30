@@ -3,14 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 
 /*
- * Turns a normal photo into a pixel-art "poster" portrait:
- *  - the photo is sampled down to a coarse grid of square cells
- *  - each cell is mapped to a 4-tone poster palette by brightness
- *  - mid tones are split blue (left) / red (right), so the photo's own
- *    background dissolves into the same split backdrop as the figure
+ * Full-bleed pixel-art hero background, made from any photo.
  *
- * Reveal: the tile starts small, transparent and very blocky, then grows to
- * its full size while the pixel grid refines to its final resolution.
+ *  1. The photo is mapped to a pixel grid in a blue (left) / red (right)
+ *     poster palette. Its own backdrop is detected and recoloured, and any
+ *     space beside the photo is filled with the same blue/red backdrop, so
+ *     every image gets the split background automatically.
+ *  2. Reveal: it starts as a small, very blocky tile, grows until it fills
+ *     the whole hero while the pixels refine, then softens and fades its
+ *     edges so it settles into the page as if it were the background.
  */
 
 const PALETTE = {
@@ -22,46 +23,43 @@ const PALETTE = {
   cream: [243, 224, 168],
 };
 
-const FINAL_CELLS = 44; // pixels across the finished portrait
-const STEPS = [5, 8, 12, 17, 23, 30, 37, FINAL_CELLS];
-const DURATION = 2400; // ms
-const RENDER_SIZE = 480; // backing canvas resolution (2x for retina)
+const GROW_MS = 2400; // small → full size, pixels refining
+const BLEND_MS = 1400; // full size → blended into the page
+const STEPS = [0.07, 0.11, 0.16, 0.23, 0.32, 0.44, 0.6, 0.8, 1];
+const START_SCALE = 0.2;
 
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
-
-function rgb([r, g, b]) {
-  return `rgb(${r},${g},${b})`;
-}
+const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+const lerp = (a, b, t) => a + (b - a) * t;
+const rgb = ([r, g, b]) => `rgb(${r},${g},${b})`;
 
 function pickColor(lum, xRatio) {
-  const left = xRatio < 0.52;
+  const left = xRatio < 0.5;
   if (lum < 0.24) return PALETTE.navy;
   if (lum < 0.46) return left ? PALETTE.blueDark : PALETTE.redDark;
   if (lum < 0.74) return left ? PALETTE.blueLight : PALETTE.red;
   return PALETTE.cream;
 }
 
-/** Centre-crop the image into a square and return a canvas we can sample from. */
+const backdropColor = (xRatio) => (xRatio < 0.5 ? PALETTE.blueLight : PALETTE.red);
+
+/** Square, face-biased crop used only to measure the photo's tones. */
 function squareSource(img) {
   const size = Math.min(img.naturalWidth, img.naturalHeight);
   const sx = (img.naturalWidth - size) / 2;
-  // Bias the crop slightly upwards so faces stay in frame on tall photos.
   const sy = Math.max(0, (img.naturalHeight - size) * 0.3);
   const canvas = document.createElement("canvas");
   canvas.width = 256;
   canvas.height = 256;
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(img, sx, sy, size, size, 0, 0, 256, 256);
   return canvas;
 }
 
-/**
- * Brightness percentiles (so tones adapt to any photo's exposure) plus an
- * estimate of the backdrop colour, sampled from the top and side edges.
- */
+/** Brightness range (adapts to any exposure) and the photo's backdrop colour. */
 function measureLevels(source) {
-  const ctx = source.getContext("2d");
+  const ctx = source.getContext("2d", { willReadFrequently: true });
   const { width, height } = source;
   const { data } = ctx.getImageData(0, 0, width, height);
   const values = [];
@@ -72,7 +70,6 @@ function measureLevels(source) {
   const lo = values[Math.floor(values.length * 0.04)];
   const hi = values[Math.floor(values.length * 0.96)];
 
-  // Edge ring: top band + left/right bands down to 70% height (skip shoulders).
   const band = Math.round(width * 0.06);
   const samples = [];
   for (let y = 0; y < height * 0.7; y += 2) {
@@ -92,26 +89,52 @@ function measureLevels(source) {
     lo,
     range: Math.max(0.08, hi - lo),
     bg: mean,
-    // A busy backdrop (high spread) gets no special treatment.
     bgThreshold: spread < 70 ? Math.max(38, spread * 2.2) : 0,
   };
 }
 
 /**
- * Flood-fill from the edges over cells that look like the backdrop. Growth
- * follows gradual drift (vignettes, gradient walls): a cell joins if it is
- * close to the edge colour, or close to the backdrop cell it grows from while
- * staying within a looser global limit.
+ * Lay the photo onto a canvas with the hero's aspect ratio. The whole photo
+ * stays visible (contain); the space around it is painted in the photo's own
+ * backdrop colour so it reads as one continuous background.
  */
-function backgroundMask(data, cells, levels) {
-  const mask = new Uint8Array(cells * cells);
-  if (!levels.bgThreshold) return mask;
-  const thr = levels.bgThreshold;
-  const dist = (i, r, g, b) => Math.sqrt((data[i] - r) ** 2 + (data[i + 1] - g) ** 2 + (data[i + 2] - b) ** 2);
-  const [br, bgG, bb] = levels.bg;
+function layoutSource(img, levels, aspect) {
+  const h = 256;
+  const w = Math.max(64, Math.min(1024, Math.round(h * aspect)));
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.fillStyle = rgb(levels.bg.map(Math.round));
+  ctx.fillRect(0, 0, w, h);
 
-  const accepts = (idx, fromIdx) => {
-    const i = idx * 4;
+  const scale = Math.min(w / img.naturalWidth, h / img.naturalHeight);
+  const dw = img.naturalWidth * scale;
+  const dh = img.naturalHeight * scale;
+  const dx = (w - dw) / 2;
+  const dy = h - dh; // sit on the bottom edge, like a portrait in frame
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(img, dx, dy, dw, dh);
+
+  return { canvas, rect: { x0: dx / w, x1: (dx + dw) / w, y0: dy / h, y1: 1 } };
+}
+
+/** Cells outside the photo, plus the photo's own backdrop (flood-filled). */
+function backgroundMask(data, cols, rows, levels, rect) {
+  const mask = new Uint8Array(cols * rows);
+  const outside = (x, y) => {
+    const fx = (x + 0.5) / cols;
+    const fy = (y + 0.5) / rows;
+    return fx < rect.x0 || fx > rect.x1 || fy < rect.y0;
+  };
+  const thr = levels.bgThreshold;
+  const [br, bgG, bb] = levels.bg;
+  const dist = (i, r, g, b) => Math.sqrt((data[i] - r) ** 2 + (data[i + 1] - g) ** 2 + (data[i + 2] - b) ** 2);
+
+  const accepts = (x, y, fromIdx) => {
+    if (outside(x, y)) return true;
+    if (!thr) return false;
+    const i = (y * cols + x) * 4;
     const dGlobal = dist(i, br, bgG, bb);
     if (dGlobal < thr) return true;
     if (fromIdx < 0 || dGlobal > thr * 2.2) return false;
@@ -121,84 +144,104 @@ function backgroundMask(data, cells, levels) {
 
   const queue = [];
   const visit = (x, y, fromIdx) => {
-    const idx = y * cells + x;
-    if (!mask[idx] && accepts(idx, fromIdx)) {
+    const idx = y * cols + x;
+    if (!mask[idx] && accepts(x, y, fromIdx)) {
       mask[idx] = 1;
       queue.push(idx);
     }
   };
-  for (let x = 0; x < cells; x += 1) visit(x, 0, -1);
-  for (let y = 0; y < cells; y += 1) {
+  for (let x = 0; x < cols; x += 1) visit(x, 0, -1);
+  for (let y = 0; y < rows; y += 1) {
     visit(0, y, -1);
-    visit(cells - 1, y, -1);
+    visit(cols - 1, y, -1);
   }
   while (queue.length) {
     const idx = queue.pop();
-    const x = idx % cells;
-    const y = (idx - x) / cells;
+    const x = idx % cols;
+    const y = (idx - x) / cols;
     if (x > 0) visit(x - 1, y, idx);
-    if (x < cells - 1) visit(x + 1, y, idx);
+    if (x < cols - 1) visit(x + 1, y, idx);
     if (y > 0) visit(x, y - 1, idx);
-    if (y < cells - 1) visit(x, y + 1, idx);
+    if (y < rows - 1) visit(x, y + 1, idx);
   }
   return mask;
 }
 
-function drawPoster(target, source, levels, cells) {
+function finalCols(width) {
+  // Around 14px per pixel on desktop, a little finer on phones.
+  const cell = width < 640 ? 10 : 14;
+  return Math.max(28, Math.min(120, Math.round(width / cell)));
+}
+
+function drawPoster(canvas, layout, levels, cols) {
+  const { width: W, height: H } = canvas;
+  const rows = Math.max(3, Math.round((cols * H) / W));
+
   const small = document.createElement("canvas");
-  small.width = cells;
-  small.height = cells;
+  small.width = cols;
+  small.height = rows;
   const sctx = small.getContext("2d", { willReadFrequently: true });
   sctx.imageSmoothingEnabled = true;
   sctx.imageSmoothingQuality = "high";
-  sctx.drawImage(source, 0, 0, cells, cells);
-  const { data } = sctx.getImageData(0, 0, cells, cells);
-  const bgMask = backgroundMask(data, cells, levels);
+  sctx.drawImage(layout.canvas, 0, 0, cols, rows);
+  const { data } = sctx.getImageData(0, 0, cols, rows);
+  const bgMask = backgroundMask(data, cols, rows, levels, layout.rect);
 
-  const ctx = target.getContext("2d");
-  const cell = RENDER_SIZE / cells;
-  ctx.clearRect(0, 0, RENDER_SIZE, RENDER_SIZE);
+  const ctx = canvas.getContext("2d");
+  const cw = W / cols;
+  const ch = H / rows;
+  ctx.clearRect(0, 0, W, H);
 
-  for (let y = 0; y < cells; y += 1) {
-    for (let x = 0; x < cells; x += 1) {
-      const idx = y * cells + x;
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      const idx = y * cols + x;
       const i = idx * 4;
-      const xRatio = (x + 0.5) / cells;
+      const xRatio = (x + 0.5) / cols;
+      let color;
       if (bgMask[idx]) {
-        // Backdrop: flat split poster background (blue left, red right).
-        ctx.fillStyle = rgb(xRatio < 0.52 ? PALETTE.blueLight : PALETTE.red);
-        ctx.fillRect(Math.floor(x * cell), Math.floor(y * cell), Math.ceil(cell) + 1, Math.ceil(cell) + 1);
-        continue;
+        color = backdropColor(xRatio);
+      } else {
+        const raw = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255;
+        const lum = Math.min(1, Math.max(0, (raw - levels.lo) / levels.range));
+        color = pickColor(lum, xRatio);
       }
-      const raw = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255;
-      const lum = Math.min(1, Math.max(0, (raw - levels.lo) / levels.range));
-      ctx.fillStyle = rgb(pickColor(lum, xRatio));
-      // Overlap by a hair so no seams appear between cells.
-      ctx.fillRect(Math.floor(x * cell), Math.floor(y * cell), Math.ceil(cell) + 1, Math.ceil(cell) + 1);
+      ctx.fillStyle = rgb(color);
+      ctx.fillRect(Math.floor(x * cw), Math.floor(y * ch), Math.ceil(cw) + 1, Math.ceil(ch) + 1);
     }
   }
 
-  // Faint pixel grid, like a bead / cross-stitch board.
-  ctx.strokeStyle = "rgba(0, 0, 0, 0.09)";
+  // Faint bead-board grid.
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.08)";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  for (let n = 1; n < cells; n += 1) {
-    const p = Math.round(n * cell) + 0.5;
+  for (let n = 1; n < cols; n += 1) {
+    const p = Math.round(n * cw) + 0.5;
     ctx.moveTo(p, 0);
-    ctx.lineTo(p, RENDER_SIZE);
+    ctx.lineTo(p, H);
+  }
+  for (let n = 1; n < rows; n += 1) {
+    const p = Math.round(n * ch) + 0.5;
     ctx.moveTo(0, p);
-    ctx.lineTo(RENDER_SIZE, p);
+    ctx.lineTo(W, p);
   }
   ctx.stroke();
 }
 
+/** Edge fade: hard-edged tile while small, soft vignette once blended. */
+function maskFor(t) {
+  const inner = lerp(55, 38, t);
+  const outer = lerp(100, 92, t);
+  return `radial-gradient(ellipse 62% 60% at 50% 45%, #000 ${inner}%, transparent ${outer}%)`;
+}
+
 export default function PixelPortrait({ src, alt, start = true, className = "" }) {
-  const canvasRef = useRef(null);
   const wrapRef = useRef(null);
-  const sourceRef = useRef(null);
+  const layerRef = useRef(null);
+  const canvasRef = useRef(null);
+  const prepRef = useRef(null); // { img, levels, layout, aspectKey }
+  const stateRef = useRef({ cols: 0, done: false });
   const [status, setStatus] = useState("loading"); // loading | ready | failed
 
-  // Load + prepare the photo once.
   useEffect(() => {
     let cancelled = false;
     const img = new Image();
@@ -207,12 +250,10 @@ export default function PixelPortrait({ src, alt, start = true, className = "" }
     img.onload = () => {
       if (cancelled) return;
       try {
-        const source = squareSource(img);
-        sourceRef.current = { source, levels: measureLevels(source) };
+        prepRef.current = { img, levels: measureLevels(squareSource(img)), layout: null, aspectKey: "" };
         setStatus("ready");
       } catch {
-        // Canvas is tainted (image host without CORS) – fall back gracefully.
-        setStatus("failed");
+        setStatus("failed"); // image host without CORS
       }
     };
     img.onerror = () => !cancelled && setStatus("failed");
@@ -222,53 +263,86 @@ export default function PixelPortrait({ src, alt, start = true, className = "" }
     };
   }, [src]);
 
-  // Run the reveal once the photo is ready and the page says "go".
   useEffect(() => {
     if (status !== "ready" || !start) return;
-    const canvas = canvasRef.current;
     const wrap = wrapRef.current;
-    const prepared = sourceRef.current;
-    if (!canvas || !wrap || !prepared) return;
+    const layer = layerRef.current;
+    const canvas = canvasRef.current;
+    const prep = prepRef.current;
+    if (!wrap || !layer || !canvas || !prep) return;
 
-    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (reduceMotion) {
-      drawPoster(canvas, prepared.source, prepared.levels, FINAL_CELLS);
-      wrap.style.transform = "scale(1)";
-      wrap.style.opacity = "1";
-      return;
+    const render = (fraction) => {
+      const w = Math.max(1, Math.round(wrap.clientWidth));
+      const h = Math.max(1, Math.round(wrap.clientHeight));
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+      const aspectKey = (w / h).toFixed(2);
+      if (prep.aspectKey !== aspectKey) {
+        prep.layout = layoutSource(prep.img, prep.levels, w / h);
+        prep.aspectKey = aspectKey;
+      }
+      const cols = Math.max(3, Math.round(finalCols(w) * fraction));
+      drawPoster(canvas, prep.layout, prep.levels, cols);
+      stateRef.current.cols = cols;
+    };
+
+    const settle = () => {
+      layer.style.transform = "scale(1)";
+      layer.style.filter = "none";
+      layer.style.opacity = "";
+      wrap.style.setProperty("--pixel-mask", maskFor(1));
+      wrap.classList.add("is-blended");
+      stateRef.current.done = true;
+    };
+
+    const observer = new ResizeObserver(() => {
+      if (stateRef.current.done) render(1);
+    });
+    observer.observe(wrap);
+
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      render(1);
+      settle();
+      return () => observer.disconnect();
     }
 
     let frame;
-    let lastCells = 0;
+    let lastStep = -1;
     const begin = performance.now();
-
     const tick = (now) => {
-      const t = Math.min(1, (now - begin) / DURATION);
-      const eased = easeOutCubic(t);
-
-      const stepIndex = Math.min(STEPS.length - 1, Math.floor(t * STEPS.length));
-      const cells = STEPS[stepIndex];
-      if (cells !== lastCells) {
-        drawPoster(canvas, prepared.source, prepared.levels, cells);
-        lastCells = cells;
+      const elapsed = now - begin;
+      const g = Math.min(1, elapsed / GROW_MS);
+      const step = Math.min(STEPS.length - 1, Math.floor(g * STEPS.length));
+      if (step !== lastStep) {
+        render(STEPS[step]);
+        lastStep = step;
       }
+      const eased = easeOutCubic(g);
+      layer.style.transform = `scale(${lerp(START_SCALE, 1, eased)})`;
+      layer.style.filter = `blur(${(1 - eased) * 4}px)`;
+      const b = easeInOut(Math.min(1, Math.max(0, (elapsed - GROW_MS) / BLEND_MS)));
+      const settled = document.documentElement.classList.contains("dark") ? 0.42 : 0.55;
+      layer.style.opacity = String(Math.min(1, g * 2) * lerp(1, settled, b));
+      wrap.style.setProperty("--pixel-mask", maskFor(b));
+      if (elapsed >= GROW_MS) wrap.classList.add("is-blending");
 
-      wrap.style.transform = `scale(${0.28 + 0.72 * eased})`;
-      wrap.style.opacity = String(Math.min(1, t * 1.8));
-      wrap.style.filter = `blur(${(1 - eased) * 6}px)`;
-
-      if (t < 1) frame = requestAnimationFrame(tick);
-      else wrap.style.filter = "none";
+      if (elapsed < GROW_MS + BLEND_MS) frame = requestAnimationFrame(tick);
+      else settle();
     };
-
     frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
   }, [status, start]);
 
   if (status === "failed") {
     return (
-      <div className={`pixel-portrait pixel-portrait--fallback ${className}`}>
-        <img src={src} alt={alt} className="w-full h-full object-cover" />
+      <div className={`pixel-bg is-blended ${className}`} aria-hidden="true" style={{ "--pixel-mask": maskFor(1) }}>
+        <img src={src} alt="" className="pixel-bg__fallback" />
       </div>
     );
   }
@@ -276,17 +350,12 @@ export default function PixelPortrait({ src, alt, start = true, className = "" }
   return (
     <div
       ref={wrapRef}
-      className={`pixel-portrait ${className}`}
-      style={{ transform: "scale(0.28)", opacity: 0 }}
+      className={`pixel-bg ${className}`}
+      style={{ "--pixel-mask": maskFor(0) }}
     >
-      <canvas
-        ref={canvasRef}
-        width={RENDER_SIZE}
-        height={RENDER_SIZE}
-        role="img"
-        aria-label={alt}
-        className="block w-full h-full"
-      />
+      <div ref={layerRef} className="pixel-bg__layer" style={{ transform: `scale(${START_SCALE})`, opacity: 0 }}>
+        <canvas ref={canvasRef} role="img" aria-label={alt} className="pixel-bg__canvas" />
+      </div>
     </div>
   );
 }

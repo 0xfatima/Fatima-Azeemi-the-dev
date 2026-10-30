@@ -496,10 +496,9 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
 
       <main className="relative z-10 pt-28">
         <section id="hero" className="min-h-[85vh] flex flex-col items-center justify-center text-center px-4 sm:px-8 relative">
-          <div className="max-w-4xl mx-auto space-y-6">
-            <div className="my-4 flex justify-center">
-              <PixelPortrait src={portrait} alt={DEFAULT_ALT} start={brandOn} className="w-48 h-48 sm:w-60 sm:h-60" />
-            </div>
+          <PixelPortrait src={portrait} alt={DEFAULT_ALT} start={brandOn} className="inset-x-0 -top-28 bottom-0" />
+          <div className="hero-veil" aria-hidden="true" />
+          <div className="max-w-4xl mx-auto space-y-6 relative z-10">
             <div>
               <span className="text-xs sm:text-sm font-mono tracking-widest uppercase text-cream-muted dark:text-dark-muted">
                 AI Engineer · LLMs · RAG · Full-Stack
