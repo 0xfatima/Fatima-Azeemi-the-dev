@@ -1,0 +1,66 @@
+diff --git a/components/PortfolioSite.js b/components/PortfolioSite.js
+index d010895..7346887 100644
+--- a/components/PortfolioSite.js
++++ b/components/PortfolioSite.js
+@@ -342,7 +342,7 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
+     setLoginStatus("");
+     setLoginError("");
+     try {
+-      await api("/api/auth/login", { method: "POST", body: JSON.stringify({ password }) });
++      await api("/api/auth/login", { method: "POST", body: JSON.stringify({ password: password.trim() }) });
+       setLoginStatus("ok");
+       setIsAdmin(true);
+       setPassword("");
+@@ -857,7 +857,7 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
+             <form onSubmit={login} className="space-y-3">
+               <div>
+                 <label className="text-[10px] uppercase tracking-wide font-mono text-cream-muted dark:text-dark-muted block mb-1">Passkey</label>
+-                <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" placeholder="Enter your admin passkey" className="w-full px-4 py-2.5 rounded-xl border border-cream-border dark:border-stone-700 bg-white dark:bg-stone-900 text-xs text-cream-text dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20" required />
++                <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="Enter your admin passkey" className="w-full px-4 py-2.5 rounded-xl border border-cream-border dark:border-stone-700 bg-white dark:bg-stone-900 text-xs text-cream-text dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20" required />
+               </div>
+               <button type="submit" className="w-full py-2.5 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">
+                 Authenticate Session
+diff --git a/lib/auth.js b/lib/auth.js
+index 4bf2ee0..26f1e9b 100644
+--- a/lib/auth.js
++++ b/lib/auth.js
+@@ -1,4 +1,4 @@
+-import { createHmac, timingSafeEqual } from "crypto";
++import { createHash, createHmac, timingSafeEqual } from "crypto";
+ import { NextResponse } from "next/server";
+ 
+ export const SESSION_COOKIE = "portfolio_session";
+@@ -75,11 +75,29 @@ export function clearFailures(req) {
+   fails.delete(clientKey(req));
+ }
+ 
++// Make the comparison forgiving of invisible differences that commonly sneak
++// into env vars or typed input: surrounding whitespace/newlines, a pair of
++// quotes left around the value in a hosting dashboard, and Unicode forms.
++function normalizeSecret(value) {
++  return String(value)
++    .normalize("NFC")
++    .trim()
++    .replace(/^(['"])([\s\S]*)\1$/, "$2")
++    .trim();
++}
++
++let warnedEnv = false;
++
+ export function checkPassword(password) {
+-  const expected = process.env.ADMIN_PASSWORD || "";
++  const raw = process.env.ADMIN_PASSWORD || "";
++  const expected = normalizeSecret(raw);
+   if (!expected || typeof password !== "string") return false;
+-  const left = Buffer.from(password);
+-  const right = Buffer.from(expected);
+-  if (left.length !== right.length) return false;
++  if (!warnedEnv && expected !== raw) {
++    warnedEnv = true;
++    console.warn("[auth] ADMIN_PASSWORD has surrounding spaces, newlines or quotes; they are ignored.");
++  }
++  // Hash both sides so the comparison is constant-time whatever the lengths.
++  const left = createHash("sha256").update(normalizeSecret(password)).digest();
++  const right = createHash("sha256").update(expected).digest();
+   return timingSafeEqual(left, right);
+ }

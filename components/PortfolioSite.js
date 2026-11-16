@@ -342,7 +342,7 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
     setLoginStatus("");
     setLoginError("");
     try {
-      await api("/api/auth/login", { method: "POST", body: JSON.stringify({ password }) });
+      await api("/api/auth/login", { method: "POST", body: JSON.stringify({ password: password.trim() }) });
       setLoginStatus("ok");
       setIsAdmin(true);
       setPassword("");
@@ -857,7 +857,7 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
             <form onSubmit={login} className="space-y-3">
               <div>
                 <label className="text-[10px] uppercase tracking-wide font-mono text-cream-muted dark:text-dark-muted block mb-1">Passkey</label>
-                <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" placeholder="Enter your admin passkey" className="w-full px-4 py-2.5 rounded-xl border border-cream-border dark:border-stone-700 bg-white dark:bg-stone-900 text-xs text-cream-text dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20" required />
+                <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="Enter your admin passkey" className="w-full px-4 py-2.5 rounded-xl border border-cream-border dark:border-stone-700 bg-white dark:bg-stone-900 text-xs text-cream-text dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20" required />
               </div>
               <button type="submit" className="w-full py-2.5 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">
                 Authenticate Session
