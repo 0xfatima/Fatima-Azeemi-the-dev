@@ -3,10 +3,28 @@
 import { useState } from "react";
 import { Database, LogOut, PlusCircle, RotateCcw, Trash2, X } from "lucide-react";
 import { api, compressImage, compressGalleryImage, compressLogoImage } from "@/lib/client";
+import { SKILL_ROWS } from "@/lib/skills";
 
+// Shared styles. Light values first, dark values behind `dark:` so the console
+// follows the same cream / charcoal theme as the rest of the site.
 const inputClass =
-  "w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs text-stone-100 focus:outline-none";
-const labelClass = "text-[10px] font-mono uppercase text-stone-400 block mb-1";
+  "w-full px-3 py-2 rounded-xl bg-white dark:bg-stone-900 border border-cream-border dark:border-stone-700 text-xs text-cream-text dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20 transition-colors";
+const labelClass = "text-[10px] font-mono uppercase tracking-wide text-cream-muted dark:text-stone-400 block mb-1";
+const formCard =
+  "p-5 rounded-2xl space-y-4 border border-cream-border dark:border-stone-700/50 bg-cream-surface/70 dark:bg-stone-900/40";
+const formHeading =
+  "font-heading font-bold text-sm text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-2";
+const rowClass =
+  "flex items-center justify-between gap-3 p-3 rounded-xl bg-white/80 dark:bg-stone-900 border border-cream-border dark:border-stone-800 text-xs";
+const mutedText = "text-cream-muted dark:text-stone-400";
+const editBtn =
+  "px-2.5 py-1 rounded-lg bg-cream-card hover:bg-cream-border text-cream-text dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-200 transition-colors";
+const deleteBtn =
+  "px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-600 hover:bg-rose-500/20 dark:bg-rose-500/20 dark:text-rose-400 dark:hover:bg-rose-500/30 transition-colors";
+const clearBtn =
+  "px-4 py-2 rounded-xl border border-cream-border dark:border-stone-700 text-xs hover:bg-cream-card dark:hover:bg-stone-800 transition-colors";
+const saveBtn =
+  "px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 disabled:opacity-60 transition-colors";
 
 const emptyProject = { id: "", title: "", stack: "", live: "", github: "", description: "", cover: "" };
 const emptySkill = { id: "", name: "", row: "1", icon: "" };
@@ -47,12 +65,12 @@ function UploadField({ label, value, onChange, onFile, uploadLabel = "Upload" })
           placeholder="https://..."
           className={`flex-1 ${inputClass}`}
         />
-        <label className="cursor-pointer px-3 py-2 rounded-xl border border-stone-700 bg-stone-800 text-xs hover:bg-stone-700 font-medium transition-colors whitespace-nowrap">
+        <label className="cursor-pointer px-3 py-2 rounded-xl border border-cream-border bg-cream-card text-cream-text hover:bg-cream-border dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:hover:bg-stone-700 text-xs font-medium transition-colors whitespace-nowrap">
           {uploadLabel}
           <input type="file" accept="image/*" className="hidden" onChange={onFile} />
         </label>
       </div>
-      {value ? <img src={value} alt="Fatima Azeemi AI Engineer" className="mt-2 h-12 w-12 rounded-lg object-cover border border-stone-700" /> : null}
+      {value ? <img src={value} alt="Fatima Azeemi AI Engineer" className="mt-2 h-12 w-12 rounded-lg object-cover border border-cream-border dark:border-stone-700" /> : null}
     </Field>
   );
 }
@@ -107,6 +125,7 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
       setEducation(emptyEducation);
       setCourse(emptyCourse);
       setSkill(emptySkill);
+      setAlbum(emptyAlbum);
       setGallery(emptyGallery);
       setPublication(emptyPublication);
       await onSaved();
@@ -178,9 +197,9 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
   }
 
   return (
-    <div id="admin-dashboard-modal" className={`fixed inset-0 z-[70] bg-black/85 backdrop-blur-lg flex items-center justify-center p-4 ${open ? "" : "hidden"}`}>
-      <div className="glass-panel w-full max-w-5xl rounded-3xl p-6 space-y-6 relative max-h-[92vh] overflow-y-auto">
-        <button type="button" onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full border border-cream-border dark:border-dark-border z-10" aria-label="Close console">
+    <div id="admin-dashboard-modal" className={`fixed inset-0 z-[70] bg-stone-900/40 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-4 ${open ? "" : "hidden"}`}>
+      <div className="w-full max-w-5xl rounded-3xl p-6 space-y-6 relative max-h-[92vh] overflow-y-auto bg-cream-bg dark:bg-dark-surface text-cream-text dark:text-dark-text border border-cream-border dark:border-dark-border shadow-2xl">
+        <button type="button" onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full border border-cream-border dark:border-dark-border hover:bg-cream-card dark:hover:bg-dark-card transition-colors z-10" aria-label="Close console">
           <X className="w-4 h-4" />
         </button>
 
@@ -194,20 +213,20 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={seed} disabled={saving} className="text-xs px-3.5 py-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 font-medium transition-colors flex items-center gap-1.5">
+            <button type="button" onClick={seed} disabled={saving} className="text-xs px-3.5 py-1.5 rounded-full border border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-500 hover:bg-amber-500/20 disabled:opacity-60 font-medium transition-colors flex items-center gap-1.5">
               <RotateCcw className="w-3.5 h-3.5" /> Reset Default DB Seed
             </button>
             <button
               type="button"
               onClick={onLogout}
-              className="text-xs px-3.5 py-1.5 rounded-full border border-rose-500/40 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 font-medium transition-colors flex items-center gap-1.5"
+              className="text-xs px-3.5 py-1.5 rounded-full border border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 font-medium transition-colors flex items-center gap-1.5"
             >
               <LogOut className="w-3.5 h-3.5" /> Exit Admin
             </button>
           </div>
         </div>
 
-        {error && <p className="text-xs font-mono text-rose-400">{error}</p>}
+        {error && <p className="text-xs font-mono text-rose-600 dark:text-rose-400">{error}</p>}
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-cream-border dark:border-dark-border text-xs font-semibold">
           {tabs.map(([id, label]) => (
@@ -215,7 +234,7 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
               key={id}
               type="button"
               onClick={() => setActiveTab(id)}
-              className={`admin-tab-btn px-4 py-2 rounded-xl whitespace-nowrap ${activeTab === id ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-stone-500/10 text-stone-400 hover:bg-stone-500/20"}`}
+              className={`admin-tab-btn px-4 py-2 rounded-xl whitespace-nowrap transition-colors border ${activeTab === id ? "bg-amber-500/15 text-amber-700 border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30" : "border-transparent bg-cream-surface text-cream-muted hover:bg-cream-card hover:text-cream-text dark:bg-stone-500/10 dark:text-stone-400 dark:hover:bg-stone-500/20 dark:hover:text-stone-200"}`}
             >
               {label}
             </button>
@@ -224,8 +243,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
 
         {activeTab === "projects" && (
           <div className="space-y-6">
-            <form onSubmit={saveProject} className="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50">
-              <h4 className="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
+            <form onSubmit={saveProject} className={formCard}>
+              <h4 className={formHeading}>
                 <PlusCircle className="w-4 h-4" /> Add / Edit Project Record
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -253,23 +272,23 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                 uploadLabel="Upload File"
               />
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setProject(emptyProject)} className="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
-                <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Project Record</button>
+                <button type="button" onClick={() => setProject(emptyProject)} className={clearBtn}>Clear</button>
+                <button type="submit" disabled={saving} className={saveBtn}>Save Project Record</button>
               </div>
             </form>
             <div className="space-y-2">
               {data.projects.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-stone-900 border border-stone-800 text-xs">
+                <div key={item.id} className={rowClass}>
                   <div className="flex items-center gap-3">
                     <img src={item.cover} alt="Fatima Azeemi AI Engineer" className="w-10 h-10 rounded-lg object-cover" />
                     <div>
                       <h5 className="font-bold">{item.title}</h5>
-                      <p className="text-[10px] text-stone-400">{(item.stack || []).join(", ")}</p>
+                      <p className="text-[10px] text-cream-muted dark:text-stone-400">{(item.stack || []).join(", ")}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => setProject({ ...item, stack: (item.stack || []).join(", "), live: item.live || "", github: item.github || "", cover: item.cover || "" })} className="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-stone-200">Edit</button>
-                    <button type="button" onClick={() => remove("projects", item.id)} className="px-2.5 py-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30">Delete</button>
+                    <button type="button" onClick={() => setProject({ ...item, stack: (item.stack || []).join(", "), live: item.live || "", github: item.github || "", cover: item.cover || "" })} className={editBtn}>Edit</button>
+                    <button type="button" onClick={() => remove("projects", item.id)} className={deleteBtn}>Delete</button>
                   </div>
                 </div>
               ))}
@@ -285,66 +304,84 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                 persist(
                   "skills",
                   skill.id,
-                  {
-                    name: skill.name,
-                    row: Number(skill.row),
-                    icon: skill.row === "2" ? skill.icon : "",
-                  },
+                  { name: skill.name, row: Number(skill.row), icon: skill.icon },
                   () => setSkill(emptySkill)
                 );
               }}
-              className="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50"
+              className={formCard}
             >
-              <h4 className="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
+              <h4 className={formHeading}>
                 <PlusCircle className="w-4 h-4" /> Add / Edit Skill
               </h4>
-              <p className="text-[11px] text-stone-400">
-                Rows 1 and 3 are text-only marquees. Row 2 is the icon strip — upload a skill icon for middle-row items.
+              <p className={`text-[11px] ${mutedText}`}>
+                Row 1 shows AI skills, row 2 development skills and row 3 general skills. An icon is optional and appears beside the name.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Skill Name">
-                  <input required value={skill.name} onChange={(event) => setSkill({ ...skill, name: event.target.value })} type="text" placeholder="e.g. GraphQL" className={inputClass} />
+                  <input required value={skill.name} onChange={(event) => setSkill({ ...skill, name: event.target.value })} type="text" placeholder="e.g. LangGraph" className={inputClass} />
                 </Field>
-                <Field label="Target Marquee Row">
-                  <select value={skill.row} onChange={(event) => setSkill({ ...skill, row: event.target.value, icon: event.target.value === "2" ? skill.icon : "" })} className={inputClass}>
-                    <option value="1">Row 1 — Text only</option>
-                    <option value="2">Row 2 — Icons</option>
-                    <option value="3">Row 3 — Text only</option>
+                <Field label="Marquee Row">
+                  <select value={skill.row} onChange={(event) => setSkill({ ...skill, row: event.target.value })} className={inputClass}>
+                    {SKILL_ROWS.map((item) => (
+                      <option key={item.row} value={String(item.row)}>Row {item.row} — {item.label}</option>
+                    ))}
                   </select>
                 </Field>
               </div>
-              {skill.row === "2" && (
-                <UploadField
-                  label="Skill Icon (required for middle row)"
-                  value={skill.icon}
-                  onChange={(icon) => setSkill({ ...skill, icon })}
-                  onFile={(event) => onLogoImage(event, (icon) => setSkill((current) => ({ ...current, icon })))}
-                />
-              )}
+              <UploadField
+                label="Skill Icon (optional)"
+                value={skill.icon}
+                onChange={(icon) => setSkill({ ...skill, icon })}
+                onFile={(event) => onLogoImage(event, (icon) => setSkill((current) => ({ ...current, icon })))}
+              />
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setSkill(emptySkill)} className="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
-                <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Skill</button>
+                <button type="button" onClick={() => setSkill(emptySkill)} className={clearBtn}>Clear</button>
+                <button type="submit" disabled={saving} className={saveBtn}>Save Skill</button>
               </div>
             </form>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {data.skills.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-2.5 rounded-xl bg-stone-900 border border-stone-800 text-xs">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {item.icon ? <img src={item.icon} alt="Fatima Azeemi AI Engineer" className="w-8 h-8 rounded-lg object-contain bg-stone-800 p-1" /> : null}
-                    <div className="min-w-0">
-                      <span className="font-semibold block truncate">{item.name}</span>
-                      <span className="text-[10px] text-stone-400">Row {item.row || 1}{item.row === 2 ? " · icon" : " · text"}</span>
+            {SKILL_ROWS.map(({ row, label }) => {
+              const rowSkills = data.skills.filter((item) => (Number(item.row) || 1) === row);
+              return (
+                <div key={row} className="space-y-2">
+                  <h5 className={`text-[10px] font-mono uppercase tracking-widest ${mutedText}`}>
+                    Row {row} · {label} <span className="opacity-70">({rowSkills.length})</span>
+                  </h5>
+                  {rowSkills.length ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {rowSkills.map((item) => (
+                        <div key={item.id} className={`${rowClass} !p-2.5`}>
+                          <div className="flex items-center gap-2 min-w-0">
+                            {item.icon ? <img src={item.icon} alt="" className="w-8 h-8 rounded-lg object-contain bg-white dark:bg-stone-100 p-1 shrink-0" /> : null}
+                            <span className="font-semibold truncate">{item.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <select
+                              value={String(Number(item.row) || 1)}
+                              disabled={saving}
+                              onChange={(event) =>
+                                persist("skills", item.id, { name: item.name, row: Number(event.target.value), icon: item.icon || "" }, () => {})
+                              }
+                              className="px-1.5 py-1 rounded-lg bg-cream-surface dark:bg-stone-800 border border-cream-border dark:border-stone-700 text-[10px] focus:outline-none"
+                              aria-label={`Move ${item.name} to another row`}
+                            >
+                              {SKILL_ROWS.map((option) => (
+                                <option key={option.row} value={String(option.row)}>{option.short}</option>
+                              ))}
+                            </select>
+                            <button type="button" onClick={() => setSkill({ id: item.id, name: item.name || "", row: String(Number(item.row) || 1), icon: item.icon || "" })} className={editBtn}>Edit</button>
+                            <button type="button" onClick={() => remove("skills", item.id)} className="p-1 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-500/15" aria-label={`Delete ${item.name}`}>
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button type="button" onClick={() => setSkill({ id: item.id, name: item.name || "", row: String(item.row || 1), icon: item.icon || "" })} className="px-2 py-1 rounded bg-stone-800 hover:bg-stone-700">Edit</button>
-                    <button type="button" onClick={() => remove("skills", item.id)} className="p-1 rounded text-rose-400 hover:bg-rose-500/20" aria-label={`Delete ${item.name}`}>
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                  ) : (
+                    <p className={`text-[11px] ${mutedText}`}>No skills in this row yet.</p>
+                  )}
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         )}
 
@@ -355,9 +392,9 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                 event.preventDefault();
                 persist("experience", experience.id, experience, () => setExperience(emptyExperience));
               }}
-              className="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50"
+              className={formCard}
             >
-              <h4 className="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
+              <h4 className={formHeading}>
                 <PlusCircle className="w-4 h-4" /> Add / Edit Experience Route Stop
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -387,23 +424,23 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                 <textarea required rows={2} value={experience.description} onChange={(event) => setExperience({ ...experience, description: event.target.value })} placeholder="Architected microservices and core web platform..." className={inputClass} />
               </Field>
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setExperience(emptyExperience)} className="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
-                <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Experience Stop</button>
+                <button type="button" onClick={() => setExperience(emptyExperience)} className={clearBtn}>Clear</button>
+                <button type="submit" disabled={saving} className={saveBtn}>Save Experience Stop</button>
               </div>
             </form>
             <div className="space-y-2">
               {data.experience.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-stone-900 border border-stone-800 text-xs">
+                <div key={item.id} className={rowClass}>
                   <div className="flex items-center gap-3">
                     {item.logo ? <img src={item.logo} alt="Fatima Azeemi AI Engineer" className="w-10 h-10 rounded-lg object-cover" /> : null}
                     <div>
                       <h5 className="font-bold">{item.title}</h5>
-                      <p className="text-[10px] text-stone-400">{item.company} ({item.duration})</p>
+                      <p className="text-[10px] text-cream-muted dark:text-stone-400">{item.company} ({item.duration})</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => setExperience({ ...emptyExperience, ...item, logo: item.logo || "" })} className="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-stone-200">Edit</button>
-                    <button type="button" onClick={() => remove("experience", item.id)} className="px-2.5 py-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30">Delete</button>
+                    <button type="button" onClick={() => setExperience({ ...emptyExperience, ...item, logo: item.logo || "" })} className={editBtn}>Edit</button>
+                    <button type="button" onClick={() => remove("experience", item.id)} className={deleteBtn}>Delete</button>
                   </div>
                 </div>
               ))}
@@ -418,9 +455,9 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                 event.preventDefault();
                 persist("education", education.id, education, () => setEducation(emptyEducation));
               }}
-              className="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50"
+              className={formCard}
             >
-              <h4 className="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
+              <h4 className={formHeading}>
                 <PlusCircle className="w-4 h-4" /> Add / Edit Education Step
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -450,23 +487,23 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                 <textarea required rows={2} value={education.description} onChange={(event) => setEducation({ ...education, description: event.target.value })} placeholder="Specialization in AI & Distributed Systems..." className={inputClass} />
               </Field>
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setEducation(emptyEducation)} className="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
-                <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Education Step</button>
+                <button type="button" onClick={() => setEducation(emptyEducation)} className={clearBtn}>Clear</button>
+                <button type="submit" disabled={saving} className={saveBtn}>Save Education Step</button>
               </div>
             </form>
             <div className="space-y-2">
               {data.education.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-stone-900 border border-stone-800 text-xs">
+                <div key={item.id} className={rowClass}>
                   <div className="flex items-center gap-3">
                     {item.logo ? <img src={item.logo} alt="Fatima Azeemi AI Engineer" className="w-10 h-10 rounded-lg object-cover" /> : null}
                     <div>
                       <h5 className="font-bold">{item.degree}</h5>
-                      <p className="text-[10px] text-stone-400">{item.school}</p>
+                      <p className="text-[10px] text-cream-muted dark:text-stone-400">{item.school}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => setEducation({ ...emptyEducation, ...item, logo: item.logo || "" })} className="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-stone-200">Edit</button>
-                    <button type="button" onClick={() => remove("education", item.id)} className="px-2.5 py-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30">Delete</button>
+                    <button type="button" onClick={() => setEducation({ ...emptyEducation, ...item, logo: item.logo || "" })} className={editBtn}>Edit</button>
+                    <button type="button" onClick={() => remove("education", item.id)} className={deleteBtn}>Delete</button>
                   </div>
                 </div>
               ))}
@@ -481,9 +518,9 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                 event.preventDefault();
                 persist("courses", course.id, course, () => setCourse(emptyCourse));
               }}
-              className="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50"
+              className={formCard}
             >
-              <h4 className="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
+              <h4 className={formHeading}>
                 <PlusCircle className="w-4 h-4" /> Add / Edit Certification Record
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -515,18 +552,18 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                 />
               </div>
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setCourse(emptyCourse)} className="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
-                <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Credential</button>
+                <button type="button" onClick={() => setCourse(emptyCourse)} className={clearBtn}>Clear</button>
+                <button type="submit" disabled={saving} className={saveBtn}>Save Credential</button>
               </div>
             </form>
             <div className="space-y-2">
               {data.courses.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-stone-900 border border-stone-800 text-xs">
+                <div key={item.id} className={rowClass}>
                   <div className="flex items-center gap-3">
                     {(item.issuerLogo || item.logo) ? <img src={item.issuerLogo || item.logo} alt="Fatima Azeemi AI Engineer" className="w-10 h-10 rounded-lg object-cover" /> : null}
                     <div>
                       <h5 className="font-bold">{item.title}</h5>
-                      <p className="text-[10px] text-stone-400">{item.issuer}</p>
+                      <p className="text-[10px] text-cream-muted dark:text-stone-400">{item.issuer}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -541,11 +578,11 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                           certificate: item.certificate || "",
                         })
                       }
-                      className="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-stone-200"
+                      className={editBtn}
                     >
                       Edit
                     </button>
-                    <button type="button" onClick={() => remove("courses", item.id)} className="px-2.5 py-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30">Delete</button>
+                    <button type="button" onClick={() => remove("courses", item.id)} className={deleteBtn}>Delete</button>
                   </div>
                 </div>
               ))}
@@ -560,9 +597,9 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                 event.preventDefault();
                 persist("albums", album.id, album, () => setAlbum(emptyAlbum));
               }}
-              className="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50"
+              className={formCard}
             >
-              <h4 className="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
+              <h4 className={formHeading}>
                 <PlusCircle className="w-4 h-4" /> Add / Edit Album
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -581,8 +618,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                 <input value={album.description} onChange={(event) => setAlbum({ ...album, description: event.target.value })} type="text" placeholder="Short note about this album" className={inputClass} />
               </Field>
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setAlbum(emptyAlbum)} className="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
-                <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Album</button>
+                <button type="button" onClick={() => setAlbum(emptyAlbum)} className={clearBtn}>Clear</button>
+                <button type="submit" disabled={saving} className={saveBtn}>Save Album</button>
               </div>
             </form>
 
@@ -590,17 +627,17 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
               {(data.albums || []).map((item) => {
                 const count = (data.gallery || []).filter((photo) => photo.albumId === item.id).length;
                 return (
-                  <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-stone-900 border border-stone-800 text-xs">
+                  <div key={item.id} className={rowClass}>
                     <div className="flex items-center gap-3 min-w-0">
-                      {item.cover ? <img src={item.cover} alt="Fatima Azeemi AI Engineer" className="w-12 h-12 rounded-lg object-cover shrink-0" /> : <div className="w-12 h-12 rounded-lg bg-stone-800 shrink-0" />}
+                      {item.cover ? <img src={item.cover} alt="Fatima Azeemi AI Engineer" className="w-12 h-12 rounded-lg object-cover shrink-0" /> : <div className="w-12 h-12 rounded-lg bg-cream-card dark:bg-stone-800 shrink-0" />}
                       <div className="min-w-0">
                         <h5 className="font-bold truncate">{item.title}</h5>
-                        <p className="text-[10px] text-stone-400">{count} photo{count === 1 ? "" : "s"}{item.description ? ` · ${item.description}` : ""}</p>
+                        <p className="text-[10px] text-cream-muted dark:text-stone-400">{count} photo{count === 1 ? "" : "s"}{item.description ? ` · ${item.description}` : ""}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <button type="button" onClick={() => setAlbum({ ...emptyAlbum, ...item, cover: item.cover || "", description: item.description || "" })} className="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-stone-200">Edit</button>
-                      <button type="button" onClick={() => remove("albums", item.id)} className="px-2.5 py-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30">Delete</button>
+                      <button type="button" onClick={() => setAlbum({ ...emptyAlbum, ...item, cover: item.cover || "", description: item.description || "" })} className={editBtn}>Edit</button>
+                      <button type="button" onClick={() => remove("albums", item.id)} className={deleteBtn}>Delete</button>
                     </div>
                   </div>
                 );
@@ -612,9 +649,9 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                 event.preventDefault();
                 persist("gallery", gallery.id, gallery, () => setGallery(emptyGallery));
               }}
-              className="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50"
+              className={formCard}
             >
-              <h4 className="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
+              <h4 className={formHeading}>
                 <PlusCircle className="w-4 h-4" /> Add / Edit Gallery Photo
               </h4>
               <UploadField
@@ -641,30 +678,30 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                 </Field>
               </div>
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setGallery(emptyGallery)} className="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
-                <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Photo</button>
+                <button type="button" onClick={() => setGallery(emptyGallery)} className={clearBtn}>Clear</button>
+                <button type="submit" disabled={saving} className={saveBtn}>Save Photo</button>
               </div>
             </form>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {(data.gallery || []).map((item) => {
                 const albumTitle = (data.albums || []).find((entry) => entry.id === item.albumId)?.title || "Uncategorized";
                 return (
-                  <div key={item.id} className="rounded-xl overflow-hidden bg-stone-900 border border-stone-800">
+                  <div key={item.id} className="rounded-xl overflow-hidden bg-white/80 dark:bg-stone-900 border border-cream-border dark:border-stone-800">
                     <img src={item.url} alt={item.caption || "Fatima Azeemi AI Engineer"} className="w-full aspect-square object-cover" />
                     <div className="p-3 flex items-center justify-between gap-2 text-xs">
                       <div className="min-w-0">
-                        <span className="block truncate text-stone-300">{item.caption || "Untitled"}</span>
-                        <span className="block truncate text-[10px] text-stone-500">{albumTitle}</span>
+                        <span className="block truncate text-cream-text dark:text-stone-300">{item.caption || "Untitled"}</span>
+                        <span className="block truncate text-[10px] text-cream-muted dark:text-stone-500">{albumTitle}</span>
                       </div>
                       <div className="flex gap-1 shrink-0">
                         <button
                           type="button"
                           onClick={() => setGallery({ id: item.id, url: item.url || "", caption: item.caption || "", albumId: item.albumId || "" })}
-                          className="px-2 py-1 rounded bg-stone-800"
+                          className={editBtn}
                         >
                           Edit
                         </button>
-                        <button type="button" onClick={() => remove("gallery", item.id)} className="px-2 py-1 rounded bg-rose-500/20 text-rose-400">Delete</button>
+                        <button type="button" onClick={() => remove("gallery", item.id)} className={deleteBtn}>Delete</button>
                       </div>
                     </div>
                   </div>
@@ -681,9 +718,9 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                 event.preventDefault();
                 persist("publications", publication.id, publication, () => setPublication(emptyPublication));
               }}
-              className="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50"
+              className={formCard}
             >
-              <h4 className="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
+              <h4 className={formHeading}>
                 <PlusCircle className="w-4 h-4" /> Add / Edit Publication
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -713,18 +750,18 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                 <textarea rows={3} value={publication.abstract} onChange={(event) => setPublication({ ...publication, abstract: event.target.value })} placeholder="Short summary..." className={inputClass} />
               </Field>
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setPublication(emptyPublication)} className="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
-                <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Publication</button>
+                <button type="button" onClick={() => setPublication(emptyPublication)} className={clearBtn}>Clear</button>
+                <button type="submit" disabled={saving} className={saveBtn}>Save Publication</button>
               </div>
             </form>
             <div className="space-y-2">
               {(data.publications || []).map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-stone-900 border border-stone-800 text-xs">
+                <div key={item.id} className={rowClass}>
                   <div className="flex items-center gap-3 min-w-0">
                     {item.cover ? <img src={item.cover} alt="Fatima Azeemi AI Engineer" className="w-12 h-12 rounded-lg object-cover" /> : null}
                     <div className="min-w-0">
                       <h5 className="font-bold truncate">{item.title}</h5>
-                      <p className="text-[10px] text-stone-400 truncate">{[item.venue, item.year].filter(Boolean).join(" · ")}</p>
+                      <p className="text-[10px] text-cream-muted dark:text-stone-400 truncate">{[item.venue, item.year].filter(Boolean).join(" · ")}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -742,11 +779,11 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                           abstract: item.abstract || "",
                         })
                       }
-                      className="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-stone-200"
+                      className={editBtn}
                     >
                       Edit
                     </button>
-                    <button type="button" onClick={() => remove("publications", item.id)} className="px-2.5 py-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30">Delete</button>
+                    <button type="button" onClick={() => remove("publications", item.id)} className={deleteBtn}>Delete</button>
                   </div>
                 </div>
               ))}

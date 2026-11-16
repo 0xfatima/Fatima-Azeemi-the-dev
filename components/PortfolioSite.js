@@ -1,18 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
-  ArrowLeft,
   ArrowUp,
   ArrowUpRight,
   Award,
   BookOpen,
   Camera,
   ChevronDown,
-  Download,
   Edit3,
   FileText,
-  FolderOpen,
   Images,
   Mail,
   Menu,
@@ -22,13 +20,13 @@ import {
   Shield,
   ShieldCheck,
   Sun,
-  Trash2,
-  Upload,
   X,
 } from "lucide-react";
 import AdminDashboard from "@/components/AdminDashboard";
+import CvViewer from "@/components/CvViewer";
 import PixelPortrait from "@/components/PixelPortrait";
-import { api, compressGalleryImage } from "@/lib/client";
+import { api } from "@/lib/client";
+import { SKILL_ROWS } from "@/lib/skills";
 
 // Swap this for your own photo (e.g. drop it in /public and use "/portrait.jpg").
 // External hosts must allow CORS so the pixel effect can read the image.
@@ -94,23 +92,75 @@ function ComingSoon() {
   return <p className="coming-soon">Coming soon</p>;
 }
 
-function SkillTrack({ id, reverse, skills, iconsOnly = false }) {
-  if (!skills.length) return null;
-  const loop = [...skills, ...skills];
+const MARQUEE_SPEED = 42; // px per second, same pace on every row
+
+function SkillChip({ skill }) {
   return (
-    <div className="overflow-hidden whitespace-nowrap flex">
-      <div id={id} className={`${reverse ? "animate-marquee-reverse" : "animate-marquee"} flex items-center gap-4 text-sm font-semibold tracking-wide`}>
-        {loop.map((skill, index) =>
-          iconsOnly ? (
-            <span key={`${skill.id || skill.name}-${index}`} className="skill-icon-chip" title={skill.name}>
-              {skill.icon ? <img src={skill.icon} alt={DEFAULT_ALT} /> : <span className="text-[10px] font-mono">{(skill.name || "?").slice(0, 2)}</span>}
-            </span>
-          ) : (
-            <span key={`${skill.id || skill.name}-${index}`} className="px-5 py-2.5 rounded-full border border-cream-border dark:border-dark-border bg-stone-500/10 backdrop-blur-md">
-              {skill.name}
-            </span>
-          )
-        )}
+    <span className="marquee-item skill-chip text-sm font-semibold tracking-wide" title={skill.name}>
+      {skill.icon ? (
+        <img
+          src={skill.icon}
+          alt=""
+          className="skill-chip__icon"
+          onError={(event) => {
+            event.currentTarget.style.display = "none";
+          }}
+        />
+      ) : null}
+      {skill.name}
+    </span>
+  );
+}
+
+/**
+ * One endless marquee row. The skill set is repeated until a group is at least
+ * as wide as the row, and the track holds two such groups, so moving it by
+ * exactly half its width loops seamlessly with no gap or restart.
+ */
+function SkillTrack({ label, reverse, skills }) {
+  const wrapRef = useRef(null);
+  const groupRef = useRef(null);
+  const [copies, setCopies] = useState(2);
+  const [duration, setDuration] = useState(40);
+
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    const group = groupRef.current;
+    if (!wrap || !group) return undefined;
+
+    const measure = () => {
+      const setWidth = group.getBoundingClientRect().width / copies;
+      if (!setWidth) return;
+      const needed = Math.max(1, Math.ceil(wrap.clientWidth / setWidth));
+      if (needed !== copies) {
+        setCopies(needed);
+        return;
+      }
+      setDuration(Math.max(12, (setWidth * needed) / MARQUEE_SPEED));
+    };
+
+    // Icons that failed to load before hydration never fire onError: hide them.
+    group.parentElement?.querySelectorAll("img").forEach((img) => {
+      if (img.complete && img.naturalWidth === 0) img.style.display = "none";
+    });
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(wrap);
+    observer.observe(group);
+    return () => observer.disconnect();
+  }, [skills, copies]);
+
+  if (!skills.length) return null;
+  const group = Array.from({ length: copies }, (_, copy) =>
+    skills.map((skill) => <SkillChip key={`${copy}-${skill.id || skill.name}`} skill={skill} />)
+  );
+
+  return (
+    <div ref={wrapRef} className="marquee" role="group" aria-label={label}>
+      <div className={`marquee-track${reverse ? " is-reverse" : ""}`} style={{ "--marquee-duration": `${duration}s` }}>
+        <div ref={groupRef} className="marquee-group">{group}</div>
+        <div className="marquee-group" aria-hidden="true">{group}</div>
       </div>
     </div>
   );
@@ -125,12 +175,7 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
   const [splashDone, setSplashDone] = useState(false);
   const [brandOn, setBrandOn] = useState(false);
   const [shapes] = useState(INITIAL_SHAPES);
-  const [docModal, setDocModal] = useState(null);
-  const [galleryOpen, setGalleryOpen] = useState(false);
-  const [galleryError, setGalleryError] = useState("");
-  const [galleryCaption, setGalleryCaption] = useState("");
-  const [galleryAlbumId, setGalleryAlbumId] = useState("");
-  const [activeAlbumId, setActiveAlbumId] = useState(null);
+  const [cvOpen, setCvOpen] = useState(false);
   const [projectGallery, setProjectGallery] = useState(null);
   const [adminAuthOpen, setAdminAuthOpen] = useState(false);
   const [dashOpen, setDashOpen] = useState(false);
@@ -321,60 +366,12 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
     setIsAdmin(false);
     setDashOpen(false);
     setAdminAuthOpen(false);
-    setGalleryError("");
   }
 
-  async function onGalleryFile(event) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    if (!isAdmin) {
-      setLoginStatus("");
-      setAdminAuthOpen(true);
-      return;
-    }
-    setGalleryError("");
-    try {
-      const dataUrl = await compressGalleryImage(file);
-      await api("/api/gallery", {
-        method: "POST",
-        body: JSON.stringify({
-          url: dataUrl,
-          caption: galleryCaption || file.name.replace(/\.[^.]+$/, ""),
-          albumId: galleryAlbumId || activeAlbumId || "",
-        }),
-      });
-      setGalleryCaption("");
-      await reload();
-    } catch (err) {
-      setGalleryError(err.message);
-    }
-  }
-
-  async function deleteGalleryPhoto(id) {
-    try {
-      await api(`/api/gallery/${id}`, { method: "DELETE" });
-      await reload();
-    } catch (err) {
-      setGalleryError(err.message);
-    }
-  }
-
-  const row1 = data.skills.filter((skill) => (skill.row || 1) === 1);
-  const row2 = data.skills.filter((skill) => skill.row === 2);
-  const row3 = data.skills.filter((skill) => skill.row === 3);
-  const albums = data.albums || [];
-  const galleryPhotos = data.gallery || [];
-  const uncategorizedPhotos = galleryPhotos.filter((photo) => !photo.albumId);
-  const viewingUncategorized = activeAlbumId === "__uncategorized__";
-  const activeAlbum = viewingUncategorized
-    ? { id: "__uncategorized__", title: "Uncategorized", description: "Photos not assigned to an album." }
-    : albums.find((album) => album.id === activeAlbumId) || null;
-  const photosInView = viewingUncategorized
-    ? uncategorizedPhotos
-    : activeAlbumId
-      ? galleryPhotos.filter((photo) => (photo.albumId || "") === activeAlbumId)
-      : [];
+  const skillRows = SKILL_ROWS.map((item) => ({
+    ...item,
+    skills: data.skills.filter((skill) => (Number(skill.row) || 1) === item.row),
+  }));
 
   return (
     <>
@@ -409,11 +406,11 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
           </span>
-          <span className="text-xs font-mono font-medium text-amber-500">Admin Mode Active</span>
+          <span className="text-xs font-mono font-medium text-amber-700 dark:text-amber-500">Admin Mode Active</span>
           <button type="button" onClick={() => setDashOpen(true)} className="px-3 py-1 bg-amber-500 text-stone-950 font-semibold rounded-full text-[11px] hover:bg-amber-400 transition-colors">
             Manage Database
           </button>
-          <button type="button" onClick={logout} className="px-3 py-1 rounded-full border border-stone-500/40 text-xs text-stone-300 hover:text-white hover:border-stone-300 transition-colors">
+          <button type="button" onClick={logout} className="px-3 py-1 rounded-full border border-stone-500/40 text-xs text-cream-muted hover:text-cream-text dark:text-stone-300 dark:hover:text-white hover:border-stone-500 dark:hover:border-stone-300 transition-colors">
             Exit
           </button>
         </div>
@@ -454,7 +451,7 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
               </button>
               <div className={`absolute right-0 top-full z-50 w-52 pt-2 ${linksOpen ? "block" : "hidden"} group-hover:block`}>
                 <div className="glass-panel rounded-2xl shadow-xl py-2">
-                  <button type="button" onClick={() => { setLinksOpen(false); setDocModal({ title: "Curriculum Vitae", link: "/Fatima-Azeemi-CV.pdf" }); }} className="flex w-full items-center gap-2.5 px-4 py-2 text-xs hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
+                  <button type="button" onClick={() => { setLinksOpen(false); setCvOpen(true); }} className="flex w-full items-center gap-2.5 px-4 py-2 text-xs hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
                     <FileText className="w-4 h-4" /> Curriculum Vitae
                   </button>
                   <a href="https://github.com/0xfatima" target="_blank" rel="noopener" className="flex items-center gap-2.5 px-4 py-2 text-xs hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
@@ -467,9 +464,9 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
                   <a href="https://medium.com" target="_blank" rel="noopener" className="flex items-center gap-2.5 px-4 py-2 text-xs hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
                     <PenTool className="w-4 h-4" /> Medium Articles
                   </a>
-                  <button type="button" onClick={() => { setLinksOpen(false); setGalleryOpen(true); }} className="flex w-full items-center gap-2.5 px-4 py-2 text-xs hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
+                  <Link href="/gallery" onClick={() => setLinksOpen(false)} className="flex w-full items-center gap-2.5 px-4 py-2 text-xs hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
                     <Camera className="w-4 h-4" /> Photo Gallery
-                  </button>
+                  </Link>
                   <div className="my-1 border-t border-cream-border dark:border-dark-border" />
                   {isAdmin ? (
                     <>
@@ -543,9 +540,9 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
           </div>
           {data.skills.length ? (
             <div className="space-y-4 py-6 border-y border-cream-border dark:border-dark-border glass-panel">
-              <SkillTrack id="skills-row-1" skills={row1} />
-              <SkillTrack id="skills-row-2" reverse iconsOnly skills={row2} />
-              <SkillTrack id="skills-row-3" skills={row3} />
+              {skillRows.map((item, index) => (
+                <SkillTrack key={item.row} label={item.label} reverse={index % 2 === 1} skills={item.skills} />
+              ))}
             </div>
           ) : (
             <ComingSoon />
@@ -556,7 +553,7 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
           <div className="text-center mb-12 flex flex-col items-center">
             <span className="text-xs font-mono uppercase tracking-widest text-cream-muted dark:text-dark-muted">Featured Work</span>
             <div className="flex items-center gap-3 mt-2">
-              <h2 className="section-heading font-heading text-3xl sm:text-4xl font-bold">Selected Projects</h2>
+              <h2 className="section-heading font-heading text-3xl sm:text-4xl font-bold">Projects</h2>
               {isAdmin && (
                 <button type="button" onClick={() => adminManage("projects")} className={adminPencil} aria-label="Add project">
                   <PlusCircle className="w-4 h-4" />
@@ -817,171 +814,7 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
         </div>
       </footer>
 
-      {docModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="glass-panel w-full max-w-lg rounded-3xl p-6 space-y-4 relative">
-            <button type="button" onClick={() => setDocModal(null)} className="absolute top-4 right-4 p-2 rounded-full border border-cream-border dark:border-dark-border">
-              <X className="w-4 h-4" />
-            </button>
-            <h3 className="font-heading text-xl font-bold">{docModal.title}</h3>
-            <div className="text-xs leading-relaxed text-cream-muted dark:text-dark-muted">
-              <p className="mb-4">Access official document file for {docModal.title}.</p>
-              <a href={docModal.link} target="_blank" rel="noopener" className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-stone-900 text-stone-100 dark:bg-stone-100 dark:text-stone-900 font-medium">
-                Download Document <Download className="w-4 h-4" />
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {galleryOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-panel w-full max-w-4xl rounded-3xl p-6 space-y-4 relative max-h-[90vh] overflow-y-auto">
-            <button
-              type="button"
-              onClick={() => {
-                setGalleryOpen(false);
-                setActiveAlbumId(null);
-              }}
-              className="absolute top-4 right-4 p-2 rounded-full border border-cream-border dark:border-dark-border z-10"
-            >
-              <X className="w-4 h-4" />
-            </button>
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pr-8">
-              <div>
-                {activeAlbum ? (
-                  <button
-                    type="button"
-                    onClick={() => setActiveAlbumId(null)}
-                    className="inline-flex items-center gap-1.5 text-xs text-cream-muted dark:text-dark-muted hover:text-cream-text dark:hover:text-dark-text mb-2"
-                  >
-                    <ArrowLeft className="w-3.5 h-3.5" /> All albums
-                  </button>
-                ) : null}
-                <h3 className="font-heading text-2xl font-bold">
-                  {activeAlbum ? activeAlbum.title : "Photography Gallery"}
-                </h3>
-                <p className="text-xs text-cream-muted dark:text-dark-muted mt-1">
-                  {activeAlbum
-                    ? activeAlbum.description || "Photos in this album."
-                    : isAdmin
-                      ? "Organize photos into albums, then upload into each one."
-                      : "Browse albums from the archive."}
-                </p>
-              </div>
-              {isAdmin && (
-                <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-                  {!activeAlbum && albums.length ? (
-                    <select
-                      value={galleryAlbumId}
-                      onChange={(event) => setGalleryAlbumId(event.target.value)}
-                      className="px-3 py-1.5 rounded-full border border-cream-border dark:border-dark-border bg-transparent text-xs focus:outline-none"
-                    >
-                      <option value="">Uncategorized</option>
-                      {albums.map((album) => (
-                        <option key={album.id} value={album.id}>{album.title}</option>
-                      ))}
-                    </select>
-                  ) : null}
-                  <input
-                    value={galleryCaption}
-                    onChange={(event) => setGalleryCaption(event.target.value)}
-                    type="text"
-                    placeholder="Caption (optional)"
-                    className="px-3 py-1.5 rounded-full border border-cream-border dark:border-dark-border bg-transparent text-xs focus:outline-none"
-                  />
-                  <label className="cursor-pointer inline-flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-full border border-cream-border dark:border-dark-border text-xs font-medium hover:bg-stone-500/20 transition-colors">
-                    <Upload className="w-3.5 h-3.5" /> Upload Photo
-                    <input type="file" accept="image/*" className="hidden" onChange={onGalleryFile} />
-                  </label>
-                  <button type="button" onClick={() => adminManage("gallery")} className="px-3.5 py-1.5 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/40 text-xs font-medium">
-                    Manage
-                  </button>
-                </div>
-              )}
-            </div>
-            {galleryError && <p className="text-xs font-mono text-rose-400">{galleryError}</p>}
-
-            {!activeAlbum ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {albums.map((album) => {
-                  const count = galleryPhotos.filter((photo) => photo.albumId === album.id).length;
-                  const cover =
-                    album.cover ||
-                    galleryPhotos.find((photo) => photo.albumId === album.id)?.url ||
-                    "";
-                  return (
-                    <button
-                      key={album.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveAlbumId(album.id);
-                        setGalleryAlbumId(album.id);
-                      }}
-                      className="text-left relative group rounded-2xl overflow-hidden aspect-[4/3] bg-stone-800 card-glow border border-cream-border/30 dark:border-dark-border/30"
-                    >
-                      {cover ? (
-                        <img src={cover} alt={DEFAULT_ALT} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-stone-500">
-                          <FolderOpen className="w-8 h-8" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
-                      <div className="absolute bottom-0 inset-x-0 p-4 text-white">
-                        <h4 className="font-heading font-bold text-lg">{album.title}</h4>
-                        <p className="text-[11px] text-white/75 mt-0.5">{count} photo{count === 1 ? "" : "s"}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-                {uncategorizedPhotos.length ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveAlbumId("__uncategorized__");
-                      setGalleryAlbumId("");
-                    }}
-                    className="text-left relative group rounded-2xl overflow-hidden aspect-[4/3] bg-stone-800 card-glow border border-cream-border/30 dark:border-dark-border/30"
-                  >
-                    <img src={uncategorizedPhotos[0].url} alt={DEFAULT_ALT} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
-                    <div className="absolute bottom-0 inset-x-0 p-4 text-white">
-                      <h4 className="font-heading font-bold text-lg">Uncategorized</h4>
-                      <p className="text-[11px] text-white/75 mt-0.5">{uncategorizedPhotos.length} photo{uncategorizedPhotos.length === 1 ? "" : "s"}</p>
-                    </div>
-                  </button>
-                ) : null}
-                {!albums.length && !galleryPhotos.length && <ComingSoon />}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {photosInView.map((photo) => (
-                  <div key={photo.id} className="relative group rounded-2xl overflow-hidden aspect-square bg-stone-800 card-glow">
-                    <img src={photo.url} alt={DEFAULT_ALT} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                    {photo.caption && (
-                      <div className="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-black/80 to-transparent text-white text-xs font-medium">
-                        {photo.caption}
-                      </div>
-                    )}
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        onClick={() => deleteGalleryPhoto(photo.id)}
-                        className="absolute top-3 right-3 p-1.5 rounded-full bg-black/50 hover:bg-rose-500/80 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                        aria-label="Delete photo"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {!photosInView.length && <ComingSoon />}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <CvViewer open={cvOpen} onClose={() => setCvOpen(false)} />
 
       {projectGallery && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">

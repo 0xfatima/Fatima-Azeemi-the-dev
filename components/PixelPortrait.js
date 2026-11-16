@@ -28,7 +28,32 @@ const BLEND_MS = 1400; // full size → blended into the page
 const STEPS = [0.07, 0.11, 0.16, 0.23, 0.32, 0.44, 0.6, 0.8, 1];
 const START_SCALE = 0.2;
 
+// Width of the ragged, pixel-dissolving border, as a fraction of the canvas.
+const EDGE_SIDE = 0.18;
+const EDGE_TOP = 0.12;
+const EDGE_BOTTOM = 0.12;
+
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+const smoothstep = (edge, x) => {
+  const t = Math.min(1, Math.max(0, x / edge));
+  return t * t * (3 - 2 * t);
+};
+
+/** Stable per-cell noise in [0, 1), so the dissolve pattern doesn't shimmer. */
+function cellNoise(x, y, cols) {
+  let h = (x * 374761393 + y * 668265263 + cols * 2147483647) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+
+/** 1 in the middle, falling to 0 towards the left, right, top and bottom edges. */
+function edgeKeep(x, y, cols, rows) {
+  const side = Math.min(x + 0.5, cols - x - 0.5) / cols;
+  const top = (y + 0.5) / rows;
+  const bottom = (rows - y - 0.5) / rows;
+  return smoothstep(EDGE_SIDE, side) * smoothstep(EDGE_TOP, top) * smoothstep(EDGE_BOTTOM, bottom);
+}
 const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 const lerp = (a, b, t) => a + (b - a) * t;
 const rgb = ([r, g, b]) => `rgb(${r},${g},${b})`;
@@ -191,9 +216,17 @@ function drawPoster(canvas, layout, levels, cols) {
   const cw = W / cols;
   const ch = H / rows;
   ctx.clearRect(0, 0, W, H);
+  const dropped = [];
 
   for (let y = 0; y < rows; y += 1) {
     for (let x = 0; x < cols; x += 1) {
+      // Near the edges, cells drop out at random (and the survivors fade), so
+      // the picture breaks up into loose pixels instead of ending on a line.
+      const keep = edgeKeep(x, y, cols, rows);
+      if (keep < 1 && cellNoise(x, y, cols) > keep) {
+        dropped.push(x, y);
+        continue;
+      }
       const idx = y * cols + x;
       const i = idx * 4;
       const xRatio = (x + 0.5) / cols;
@@ -205,6 +238,7 @@ function drawPoster(canvas, layout, levels, cols) {
         const lum = Math.min(1, Math.max(0, (raw - levels.lo) / levels.range));
         color = pickColor(lum, xRatio);
       }
+      ctx.globalAlpha = keep < 1 ? 0.35 + 0.65 * keep : 1;
       ctx.fillStyle = rgb(color);
       ctx.fillRect(Math.floor(x * cw), Math.floor(y * ch), Math.ceil(cw) + 1, Math.ceil(ch) + 1);
     }
@@ -224,14 +258,32 @@ function drawPoster(canvas, layout, levels, cols) {
     ctx.moveTo(0, p);
     ctx.lineTo(W, p);
   }
+  ctx.globalAlpha = 1;
   ctx.stroke();
+
+  // Clear the grid back out of dropped cells so no straight lines remain there.
+  for (let n = 0; n < dropped.length; n += 2) {
+    ctx.clearRect(Math.floor(dropped[n] * cw), Math.floor(dropped[n + 1] * ch), Math.ceil(cw) + 1, Math.ceil(ch) + 1);
+  }
 }
 
-/** Edge fade: hard-edged tile while small, soft vignette once blended. */
+/**
+ * Edge fade. The radial vignette alone was wider than the box, so it got cut
+ * off by the left/right edges and left hard vertical lines while the tile
+ * grew. It is now intersected (see globals.css) with side and top/bottom fades
+ * that always reach full transparency before the edge.
+ */
 function maskFor(t) {
   const inner = lerp(55, 38, t);
   const outer = lerp(100, 92, t);
-  return `radial-gradient(ellipse 62% 60% at 50% 45%, #000 ${inner}%, transparent ${outer}%)`;
+  const side = lerp(12, 20, t);
+  const top = lerp(8, 4, t);
+  const bottom = lerp(88, 80, t);
+  return [
+    `radial-gradient(ellipse 62% 60% at 50% 45%, #000 ${inner}%, transparent ${outer}%)`,
+    `linear-gradient(to right, transparent 0%, #000 ${side}%, #000 ${100 - side}%, transparent 100%)`,
+    `linear-gradient(to bottom, transparent 0%, #000 ${top}%, #000 ${bottom}%, transparent 100%)`,
+  ].join(", ");
 }
 
 export default function PixelPortrait({ src, alt, start = true, className = "" }) {

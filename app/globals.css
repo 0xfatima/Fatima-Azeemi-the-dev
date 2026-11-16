@@ -94,21 +94,74 @@ html.light .glass-panel {
   100% { transform: translateX(0%); }
 }
 
-.animate-marquee {
-  display: flex;
-  width: max-content;
-  animation: marquee 25s linear infinite;
+/* Seamless skill marquee: the track holds two identical groups, each wide
+   enough to fill the row, so sliding by exactly -50% loops with no jump and
+   no empty space. Items use margin (not flex gap) so the halves match. */
+.marquee {
+  position: relative;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%);
 }
 
-.animate-marquee:hover,
-.animate-marquee-reverse:hover {
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee var(--marquee-duration, 40s) linear infinite;
+  will-change: transform;
+}
+
+.marquee-track.is-reverse {
+  animation-name: marquee-reverse;
+}
+
+.marquee:hover .marquee-track {
   animation-play-state: paused;
 }
 
-.animate-marquee-reverse {
+.marquee-group {
   display: flex;
-  width: max-content;
-  animation: marquee-reverse 28s linear infinite;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.marquee-item {
+  flex-shrink: 0;
+  margin-right: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee {
+    overflow-x: auto;
+  }
+  .marquee-track {
+    animation: none;
+  }
+}
+
+.skill-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 1.25rem;
+  border-radius: 9999px;
+  border: 1px solid #d9d2c5;
+  background: rgba(120, 113, 108, 0.1);
+  backdrop-filter: blur(12px);
+  white-space: nowrap;
+}
+
+html.dark .skill-chip {
+  border-color: #2e2e33;
+}
+
+.skill-chip__icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0.15rem;
+  border-radius: 0.4rem;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.85);
 }
 
 /* Full-bleed pixel portrait behind the hero text. */
@@ -124,6 +177,9 @@ html.light .glass-panel {
 .pixel-bg__fallback {
   -webkit-mask-image: var(--pixel-mask);
   mask-image: var(--pixel-mask);
+  /* --pixel-mask holds several layers; only what all of them keep shows. */
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
 }
 
 .pixel-bg__layer {
@@ -357,28 +413,6 @@ html.light .coming-soon {
   opacity: 0.55;
 }
 
-.skill-icon-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 3.25rem;
-  height: 3.25rem;
-  border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(120, 113, 108, 0.12);
-  backdrop-filter: blur(12px);
-}
-
-html.light .skill-icon-chip {
-  border-color: rgba(0, 0, 0, 0.08);
-}
-
-.skill-icon-chip img {
-  width: 1.65rem;
-  height: 1.65rem;
-  object-fit: contain;
-}
-
 .step-item {
   position: relative;
   transition: transform 0.3s ease;
@@ -386,4 +420,43 @@ html.light .skill-icon-chip {
 
 .step-item:hover {
   transform: translateY(-4px);
+}
+
+/* CV viewer: view only. No selection, dragging or callouts, and nothing
+   prints while it is open. */
+.cv-viewer,
+.cv-viewer * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+}
+
+@media print {
+  body:has(.cv-viewer) > * {
+    display: none !important;
+  }
+}
+
+/* Gallery page: masonry-style columns. */
+.gallery-masonry {
+  column-gap: 1rem;
+  columns: 1;
+}
+
+@media (min-width: 640px) {
+  .gallery-masonry {
+    columns: 2;
+  }
+}
+
+@media (min-width: 1024px) {
+  .gallery-masonry {
+    columns: 3;
+  }
+}
+
+.gallery-masonry > * {
+  break-inside: avoid;
+  margin-bottom: 1rem;
 }

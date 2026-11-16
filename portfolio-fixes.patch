@@ -1,0 +1,2074 @@
+diff --git a/app/api/cv/route.js b/app/api/cv/route.js
+new file mode 100644
+index 0000000..cb23be4
+--- /dev/null
++++ b/app/api/cv/route.js
+@@ -0,0 +1,40 @@
++import { readFile } from "fs/promises";
++import path from "path";
++import { NextResponse } from "next/server";
++
++export const runtime = "nodejs";
++export const dynamic = "force-dynamic";
++
++// The CV lives outside /public so it has no public download URL. Only the
++// on-site viewer can fetch it: it sends a custom header (which a plain link,
++// address-bar visit or <iframe>/<embed> cannot add) from the same origin.
++// Note: anything a browser can display can still be captured by a determined
++// visitor (screenshots, dev tools). This stops casual downloading and copying.
++const CV_PATH = path.join(process.cwd(), "private", "Fatima-Azeemi-CV.pdf");
++
++function deny() {
++  return NextResponse.json({ error: "The CV can only be viewed on the website." }, { status: 403 });
++}
++
++export async function GET(req) {
++  if (req.headers.get("x-cv-viewer") !== "1") return deny();
++  const site = req.headers.get("sec-fetch-site");
++  const dest = req.headers.get("sec-fetch-dest");
++  if (site && site !== "same-origin") return deny();
++  if (dest && dest !== "empty") return deny();
++
++  try {
++    const file = await readFile(CV_PATH);
++    return new NextResponse(file, {
++      headers: {
++        "Content-Type": "application/pdf",
++        "Content-Disposition": "inline",
++        "Cache-Control": "private, no-store, max-age=0",
++        "X-Content-Type-Options": "nosniff",
++        "X-Robots-Tag": "noindex, nofollow, noarchive",
++      },
++    });
++  } catch {
++    return NextResponse.json({ error: "CV not available" }, { status: 404 });
++  }
++}
+diff --git a/app/gallery/[albumId]/page.js b/app/gallery/[albumId]/page.js
+new file mode 100644
+index 0000000..1b1ecf4
+--- /dev/null
++++ b/app/gallery/[albumId]/page.js
+@@ -0,0 +1,21 @@
++import { cookies } from "next/headers";
++import GalleryView from "@/components/GalleryView";
++import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
++import { getDb } from "@/lib/db";
++
++export const dynamic = "force-dynamic";
++
++export async function generateMetadata({ params }) {
++  const { albumId } = await params;
++  const db = await getDb();
++  const album = (db.albums || []).find((item) => item.id === albumId);
++  const title = album ? album.title : albumId === "uncategorized" ? "Uncategorized" : "Album";
++  return { title: `${title} | Photo Gallery | 0xfatima` };
++}
++
++export default async function AlbumPage({ params }) {
++  const { albumId } = await params;
++  const jar = await cookies();
++  const admin = verifySessionToken(jar.get(SESSION_COOKIE)?.value);
++  return <GalleryView initialData={await getDb()} initialAdmin={admin} albumId={albumId} />;
++}
+diff --git a/app/gallery/page.js b/app/gallery/page.js
+new file mode 100644
+index 0000000..e387f8e
+--- /dev/null
++++ b/app/gallery/page.js
+@@ -0,0 +1,17 @@
++import { cookies } from "next/headers";
++import GalleryView from "@/components/GalleryView";
++import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
++import { getDb } from "@/lib/db";
++
++export const dynamic = "force-dynamic";
++
++export const metadata = {
++  title: "Photo Gallery | 0xfatima",
++  description: "Photo albums by Fatima Azeemi.",
++};
++
++export default async function GalleryPage() {
++  const jar = await cookies();
++  const admin = verifySessionToken(jar.get(SESSION_COOKIE)?.value);
++  return <GalleryView initialData={await getDb()} initialAdmin={admin} albumId={null} />;
++}
+diff --git a/app/globals.css b/app/globals.css
+index 417cbed..e10a77b 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -94,21 +94,74 @@ html.light .glass-panel {
+   100% { transform: translateX(0%); }
+ }
+ 
+-.animate-marquee {
++/* Seamless skill marquee: the track holds two identical groups, each wide
++   enough to fill the row, so sliding by exactly -50% loops with no jump and
++   no empty space. Items use margin (not flex gap) so the halves match. */
++.marquee {
++  position: relative;
++  overflow: hidden;
++  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%);
++  mask-image: linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%);
++}
++
++.marquee-track {
+   display: flex;
+   width: max-content;
+-  animation: marquee 25s linear infinite;
++  animation: marquee var(--marquee-duration, 40s) linear infinite;
++  will-change: transform;
+ }
+ 
+-.animate-marquee:hover,
+-.animate-marquee-reverse:hover {
++.marquee-track.is-reverse {
++  animation-name: marquee-reverse;
++}
++
++.marquee:hover .marquee-track {
+   animation-play-state: paused;
+ }
+ 
+-.animate-marquee-reverse {
++.marquee-group {
+   display: flex;
+-  width: max-content;
+-  animation: marquee-reverse 28s linear infinite;
++  flex-shrink: 0;
++  align-items: center;
++}
++
++.marquee-item {
++  flex-shrink: 0;
++  margin-right: 1rem;
++}
++
++@media (prefers-reduced-motion: reduce) {
++  .marquee {
++    overflow-x: auto;
++  }
++  .marquee-track {
++    animation: none;
++  }
++}
++
++.skill-chip {
++  display: inline-flex;
++  align-items: center;
++  gap: 0.6rem;
++  padding: 0.6rem 1.25rem;
++  border-radius: 9999px;
++  border: 1px solid #d9d2c5;
++  background: rgba(120, 113, 108, 0.1);
++  backdrop-filter: blur(12px);
++  white-space: nowrap;
++}
++
++html.dark .skill-chip {
++  border-color: #2e2e33;
++}
++
++.skill-chip__icon {
++  width: 1.5rem;
++  height: 1.5rem;
++  padding: 0.15rem;
++  border-radius: 0.4rem;
++  object-fit: contain;
++  background: rgba(255, 255, 255, 0.85);
+ }
+ 
+ /* Full-bleed pixel portrait behind the hero text. */
+@@ -124,6 +177,9 @@ html.light .glass-panel {
+ .pixel-bg__fallback {
+   -webkit-mask-image: var(--pixel-mask);
+   mask-image: var(--pixel-mask);
++  /* --pixel-mask holds several layers; only what all of them keep shows. */
++  -webkit-mask-composite: source-in;
++  mask-composite: intersect;
+ }
+ 
+ .pixel-bg__layer {
+@@ -357,33 +413,50 @@ html.light .coming-soon {
+   opacity: 0.55;
+ }
+ 
+-.skill-icon-chip {
+-  display: inline-flex;
+-  align-items: center;
+-  justify-content: center;
+-  width: 3.25rem;
+-  height: 3.25rem;
+-  border-radius: 1rem;
+-  border: 1px solid rgba(255, 255, 255, 0.08);
+-  background: rgba(120, 113, 108, 0.12);
+-  backdrop-filter: blur(12px);
++.step-item {
++  position: relative;
++  transition: transform 0.3s ease;
+ }
+ 
+-html.light .skill-icon-chip {
+-  border-color: rgba(0, 0, 0, 0.08);
++.step-item:hover {
++  transform: translateY(-4px);
+ }
+ 
+-.skill-icon-chip img {
+-  width: 1.65rem;
+-  height: 1.65rem;
+-  object-fit: contain;
++/* CV viewer: view only. No selection, dragging or callouts, and nothing
++   prints while it is open. */
++.cv-viewer,
++.cv-viewer * {
++  -webkit-user-select: none;
++  user-select: none;
++  -webkit-touch-callout: none;
++  -webkit-user-drag: none;
+ }
+ 
+-.step-item {
+-  position: relative;
+-  transition: transform 0.3s ease;
++@media print {
++  body:has(.cv-viewer) > * {
++    display: none !important;
++  }
+ }
+ 
+-.step-item:hover {
+-  transform: translateY(-4px);
++/* Gallery page: masonry-style columns. */
++.gallery-masonry {
++  column-gap: 1rem;
++  columns: 1;
++}
++
++@media (min-width: 640px) {
++  .gallery-masonry {
++    columns: 2;
++  }
++}
++
++@media (min-width: 1024px) {
++  .gallery-masonry {
++    columns: 3;
++  }
++}
++
++.gallery-masonry > * {
++  break-inside: avoid;
++  margin-bottom: 1rem;
+ }
+diff --git a/components/AdminDashboard.js b/components/AdminDashboard.js
+index 7aebfa7..09d840c 100644
+--- a/components/AdminDashboard.js
++++ b/components/AdminDashboard.js
+@@ -3,10 +3,28 @@
+ import { useState } from "react";
+ import { Database, LogOut, PlusCircle, RotateCcw, Trash2, X } from "lucide-react";
+ import { api, compressImage, compressGalleryImage, compressLogoImage } from "@/lib/client";
++import { SKILL_ROWS } from "@/lib/skills";
+ 
++// Shared styles. Light values first, dark values behind `dark:` so the console
++// follows the same cream / charcoal theme as the rest of the site.
+ const inputClass =
+-  "w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-700 text-xs text-stone-100 focus:outline-none";
+-const labelClass = "text-[10px] font-mono uppercase text-stone-400 block mb-1";
++  "w-full px-3 py-2 rounded-xl bg-white dark:bg-stone-900 border border-cream-border dark:border-stone-700 text-xs text-cream-text dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20 transition-colors";
++const labelClass = "text-[10px] font-mono uppercase tracking-wide text-cream-muted dark:text-stone-400 block mb-1";
++const formCard =
++  "p-5 rounded-2xl space-y-4 border border-cream-border dark:border-stone-700/50 bg-cream-surface/70 dark:bg-stone-900/40";
++const formHeading =
++  "font-heading font-bold text-sm text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-2";
++const rowClass =
++  "flex items-center justify-between gap-3 p-3 rounded-xl bg-white/80 dark:bg-stone-900 border border-cream-border dark:border-stone-800 text-xs";
++const mutedText = "text-cream-muted dark:text-stone-400";
++const editBtn =
++  "px-2.5 py-1 rounded-lg bg-cream-card hover:bg-cream-border text-cream-text dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-200 transition-colors";
++const deleteBtn =
++  "px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-600 hover:bg-rose-500/20 dark:bg-rose-500/20 dark:text-rose-400 dark:hover:bg-rose-500/30 transition-colors";
++const clearBtn =
++  "px-4 py-2 rounded-xl border border-cream-border dark:border-stone-700 text-xs hover:bg-cream-card dark:hover:bg-stone-800 transition-colors";
++const saveBtn =
++  "px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 disabled:opacity-60 transition-colors";
+ 
+ const emptyProject = { id: "", title: "", stack: "", live: "", github: "", description: "", cover: "" };
+ const emptySkill = { id: "", name: "", row: "1", icon: "" };
+@@ -47,12 +65,12 @@ function UploadField({ label, value, onChange, onFile, uploadLabel = "Upload" })
+           placeholder="https://..."
+           className={`flex-1 ${inputClass}`}
+         />
+-        <label className="cursor-pointer px-3 py-2 rounded-xl border border-stone-700 bg-stone-800 text-xs hover:bg-stone-700 font-medium transition-colors whitespace-nowrap">
++        <label className="cursor-pointer px-3 py-2 rounded-xl border border-cream-border bg-cream-card text-cream-text hover:bg-cream-border dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:hover:bg-stone-700 text-xs font-medium transition-colors whitespace-nowrap">
+           {uploadLabel}
+           <input type="file" accept="image/*" className="hidden" onChange={onFile} />
+         </label>
+       </div>
+-      {value ? <img src={value} alt="Fatima Azeemi AI Engineer" className="mt-2 h-12 w-12 rounded-lg object-cover border border-stone-700" /> : null}
++      {value ? <img src={value} alt="Fatima Azeemi AI Engineer" className="mt-2 h-12 w-12 rounded-lg object-cover border border-cream-border dark:border-stone-700" /> : null}
+     </Field>
+   );
+ }
+@@ -107,6 +125,7 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+       setEducation(emptyEducation);
+       setCourse(emptyCourse);
+       setSkill(emptySkill);
++      setAlbum(emptyAlbum);
+       setGallery(emptyGallery);
+       setPublication(emptyPublication);
+       await onSaved();
+@@ -178,9 +197,9 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+   }
+ 
+   return (
+-    <div id="admin-dashboard-modal" className={`fixed inset-0 z-[70] bg-black/85 backdrop-blur-lg flex items-center justify-center p-4 ${open ? "" : "hidden"}`}>
+-      <div className="glass-panel w-full max-w-5xl rounded-3xl p-6 space-y-6 relative max-h-[92vh] overflow-y-auto">
+-        <button type="button" onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full border border-cream-border dark:border-dark-border z-10" aria-label="Close console">
++    <div id="admin-dashboard-modal" className={`fixed inset-0 z-[70] bg-stone-900/40 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-4 ${open ? "" : "hidden"}`}>
++      <div className="w-full max-w-5xl rounded-3xl p-6 space-y-6 relative max-h-[92vh] overflow-y-auto bg-cream-bg dark:bg-dark-surface text-cream-text dark:text-dark-text border border-cream-border dark:border-dark-border shadow-2xl">
++        <button type="button" onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full border border-cream-border dark:border-dark-border hover:bg-cream-card dark:hover:bg-dark-card transition-colors z-10" aria-label="Close console">
+           <X className="w-4 h-4" />
+         </button>
+ 
+@@ -194,20 +213,20 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+             </p>
+           </div>
+           <div className="flex flex-wrap items-center gap-2">
+-            <button type="button" onClick={seed} disabled={saving} className="text-xs px-3.5 py-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 font-medium transition-colors flex items-center gap-1.5">
++            <button type="button" onClick={seed} disabled={saving} className="text-xs px-3.5 py-1.5 rounded-full border border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-500 hover:bg-amber-500/20 disabled:opacity-60 font-medium transition-colors flex items-center gap-1.5">
+               <RotateCcw className="w-3.5 h-3.5" /> Reset Default DB Seed
+             </button>
+             <button
+               type="button"
+               onClick={onLogout}
+-              className="text-xs px-3.5 py-1.5 rounded-full border border-rose-500/40 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 font-medium transition-colors flex items-center gap-1.5"
++              className="text-xs px-3.5 py-1.5 rounded-full border border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 font-medium transition-colors flex items-center gap-1.5"
+             >
+               <LogOut className="w-3.5 h-3.5" /> Exit Admin
+             </button>
+           </div>
+         </div>
+ 
+-        {error && <p className="text-xs font-mono text-rose-400">{error}</p>}
++        {error && <p className="text-xs font-mono text-rose-600 dark:text-rose-400">{error}</p>}
+ 
+         <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-cream-border dark:border-dark-border text-xs font-semibold">
+           {tabs.map(([id, label]) => (
+@@ -215,7 +234,7 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+               key={id}
+               type="button"
+               onClick={() => setActiveTab(id)}
+-              className={`admin-tab-btn px-4 py-2 rounded-xl whitespace-nowrap ${activeTab === id ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-stone-500/10 text-stone-400 hover:bg-stone-500/20"}`}
++              className={`admin-tab-btn px-4 py-2 rounded-xl whitespace-nowrap transition-colors border ${activeTab === id ? "bg-amber-500/15 text-amber-700 border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30" : "border-transparent bg-cream-surface text-cream-muted hover:bg-cream-card hover:text-cream-text dark:bg-stone-500/10 dark:text-stone-400 dark:hover:bg-stone-500/20 dark:hover:text-stone-200"}`}
+             >
+               {label}
+             </button>
+@@ -224,8 +243,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+ 
+         {activeTab === "projects" && (
+           <div className="space-y-6">
+-            <form onSubmit={saveProject} className="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50">
+-              <h4 className="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
++            <form onSubmit={saveProject} className={formCard}>
++              <h4 className={formHeading}>
+                 <PlusCircle className="w-4 h-4" /> Add / Edit Project Record
+               </h4>
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+@@ -253,23 +272,23 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                 uploadLabel="Upload File"
+               />
+               <div className="flex items-center justify-end gap-3 pt-2">
+-                <button type="button" onClick={() => setProject(emptyProject)} className="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
+-                <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Project Record</button>
++                <button type="button" onClick={() => setProject(emptyProject)} className={clearBtn}>Clear</button>
++                <button type="submit" disabled={saving} className={saveBtn}>Save Project Record</button>
+               </div>
+             </form>
+             <div className="space-y-2">
+               {data.projects.map((item) => (
+-                <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-stone-900 border border-stone-800 text-xs">
++                <div key={item.id} className={rowClass}>
+                   <div className="flex items-center gap-3">
+                     <img src={item.cover} alt="Fatima Azeemi AI Engineer" className="w-10 h-10 rounded-lg object-cover" />
+                     <div>
+                       <h5 className="font-bold">{item.title}</h5>
+-                      <p className="text-[10px] text-stone-400">{(item.stack || []).join(", ")}</p>
++                      <p className="text-[10px] text-cream-muted dark:text-stone-400">{(item.stack || []).join(", ")}</p>
+                     </div>
+                   </div>
+                   <div className="flex items-center gap-2">
+-                    <button type="button" onClick={() => setProject({ ...item, stack: (item.stack || []).join(", "), live: item.live || "", github: item.github || "", cover: item.cover || "" })} className="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-stone-200">Edit</button>
+-                    <button type="button" onClick={() => remove("projects", item.id)} className="px-2.5 py-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30">Delete</button>
++                    <button type="button" onClick={() => setProject({ ...item, stack: (item.stack || []).join(", "), live: item.live || "", github: item.github || "", cover: item.cover || "" })} className={editBtn}>Edit</button>
++                    <button type="button" onClick={() => remove("projects", item.id)} className={deleteBtn}>Delete</button>
+                   </div>
+                 </div>
+               ))}
+@@ -285,66 +304,84 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                 persist(
+                   "skills",
+                   skill.id,
+-                  {
+-                    name: skill.name,
+-                    row: Number(skill.row),
+-                    icon: skill.row === "2" ? skill.icon : "",
+-                  },
++                  { name: skill.name, row: Number(skill.row), icon: skill.icon },
+                   () => setSkill(emptySkill)
+                 );
+               }}
+-              className="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50"
++              className={formCard}
+             >
+-              <h4 className="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
++              <h4 className={formHeading}>
+                 <PlusCircle className="w-4 h-4" /> Add / Edit Skill
+               </h4>
+-              <p className="text-[11px] text-stone-400">
+-                Rows 1 and 3 are text-only marquees. Row 2 is the icon strip — upload a skill icon for middle-row items.
++              <p className={`text-[11px] ${mutedText}`}>
++                Row 1 shows AI skills, row 2 development skills and row 3 general skills. An icon is optional and appears beside the name.
+               </p>
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                 <Field label="Skill Name">
+-                  <input required value={skill.name} onChange={(event) => setSkill({ ...skill, name: event.target.value })} type="text" placeholder="e.g. GraphQL" className={inputClass} />
++                  <input required value={skill.name} onChange={(event) => setSkill({ ...skill, name: event.target.value })} type="text" placeholder="e.g. LangGraph" className={inputClass} />
+                 </Field>
+-                <Field label="Target Marquee Row">
+-                  <select value={skill.row} onChange={(event) => setSkill({ ...skill, row: event.target.value, icon: event.target.value === "2" ? skill.icon : "" })} className={inputClass}>
+-                    <option value="1">Row 1 — Text only</option>
+-                    <option value="2">Row 2 — Icons</option>
+-                    <option value="3">Row 3 — Text only</option>
++                <Field label="Marquee Row">
++                  <select value={skill.row} onChange={(event) => setSkill({ ...skill, row: event.target.value })} className={inputClass}>
++                    {SKILL_ROWS.map((item) => (
++                      <option key={item.row} value={String(item.row)}>Row {item.row} — {item.label}</option>
++                    ))}
+                   </select>
+                 </Field>
+               </div>
+-              {skill.row === "2" && (
+-                <UploadField
+-                  label="Skill Icon (required for middle row)"
+-                  value={skill.icon}
+-                  onChange={(icon) => setSkill({ ...skill, icon })}
+-                  onFile={(event) => onLogoImage(event, (icon) => setSkill((current) => ({ ...current, icon })))}
+-                />
+-              )}
++              <UploadField
++                label="Skill Icon (optional)"
++                value={skill.icon}
++                onChange={(icon) => setSkill({ ...skill, icon })}
++                onFile={(event) => onLogoImage(event, (icon) => setSkill((current) => ({ ...current, icon })))}
++              />
+               <div className="flex justify-end gap-3 pt-2">
+-                <button type="button" onClick={() => setSkill(emptySkill)} className="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
+-                <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Skill</button>
++                <button type="button" onClick={() => setSkill(emptySkill)} className={clearBtn}>Clear</button>
++                <button type="submit" disabled={saving} className={saveBtn}>Save Skill</button>
+               </div>
+             </form>
+-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+-              {data.skills.map((item) => (
+-                <div key={item.id} className="flex items-center justify-between p-2.5 rounded-xl bg-stone-900 border border-stone-800 text-xs">
+-                  <div className="flex items-center gap-2 min-w-0">
+-                    {item.icon ? <img src={item.icon} alt="Fatima Azeemi AI Engineer" className="w-8 h-8 rounded-lg object-contain bg-stone-800 p-1" /> : null}
+-                    <div className="min-w-0">
+-                      <span className="font-semibold block truncate">{item.name}</span>
+-                      <span className="text-[10px] text-stone-400">Row {item.row || 1}{item.row === 2 ? " · icon" : " · text"}</span>
++            {SKILL_ROWS.map(({ row, label }) => {
++              const rowSkills = data.skills.filter((item) => (Number(item.row) || 1) === row);
++              return (
++                <div key={row} className="space-y-2">
++                  <h5 className={`text-[10px] font-mono uppercase tracking-widest ${mutedText}`}>
++                    Row {row} · {label} <span className="opacity-70">({rowSkills.length})</span>
++                  </h5>
++                  {rowSkills.length ? (
++                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
++                      {rowSkills.map((item) => (
++                        <div key={item.id} className={`${rowClass} !p-2.5`}>
++                          <div className="flex items-center gap-2 min-w-0">
++                            {item.icon ? <img src={item.icon} alt="" className="w-8 h-8 rounded-lg object-contain bg-white dark:bg-stone-100 p-1 shrink-0" /> : null}
++                            <span className="font-semibold truncate">{item.name}</span>
++                          </div>
++                          <div className="flex items-center gap-1 shrink-0">
++                            <select
++                              value={String(Number(item.row) || 1)}
++                              disabled={saving}
++                              onChange={(event) =>
++                                persist("skills", item.id, { name: item.name, row: Number(event.target.value), icon: item.icon || "" }, () => {})
++                              }
++                              className="px-1.5 py-1 rounded-lg bg-cream-surface dark:bg-stone-800 border border-cream-border dark:border-stone-700 text-[10px] focus:outline-none"
++                              aria-label={`Move ${item.name} to another row`}
++                            >
++                              {SKILL_ROWS.map((option) => (
++                                <option key={option.row} value={String(option.row)}>{option.short}</option>
++                              ))}
++                            </select>
++                            <button type="button" onClick={() => setSkill({ id: item.id, name: item.name || "", row: String(Number(item.row) || 1), icon: item.icon || "" })} className={editBtn}>Edit</button>
++                            <button type="button" onClick={() => remove("skills", item.id)} className="p-1 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-500/15" aria-label={`Delete ${item.name}`}>
++                              <Trash2 className="w-4 h-4" />
++                            </button>
++                          </div>
++                        </div>
++                      ))}
+                     </div>
+-                  </div>
+-                  <div className="flex items-center gap-1">
+-                    <button type="button" onClick={() => setSkill({ id: item.id, name: item.name || "", row: String(item.row || 1), icon: item.icon || "" })} className="px-2 py-1 rounded bg-stone-800 hover:bg-stone-700">Edit</button>
+-                    <button type="button" onClick={() => remove("skills", item.id)} className="p-1 rounded text-rose-400 hover:bg-rose-500/20" aria-label={`Delete ${item.name}`}>
+-                      <Trash2 className="w-4 h-4" />
+-                    </button>
+-                  </div>
++                  ) : (
++                    <p className={`text-[11px] ${mutedText}`}>No skills in this row yet.</p>
++                  )}
+                 </div>
+-              ))}
+-            </div>
++              );
++            })}
+           </div>
+         )}
+ 
+@@ -355,9 +392,9 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                 event.preventDefault();
+                 persist("experience", experience.id, experience, () => setExperience(emptyExperience));
+               }}
+-              className="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50"
++              className={formCard}
+             >
+-              <h4 className="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
++              <h4 className={formHeading}>
+                 <PlusCircle className="w-4 h-4" /> Add / Edit Experience Route Stop
+               </h4>
+               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+@@ -387,23 +424,23 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                 <textarea required rows={2} value={experience.description} onChange={(event) => setExperience({ ...experience, description: event.target.value })} placeholder="Architected microservices and core web platform..." className={inputClass} />
+               </Field>
+               <div className="flex justify-end gap-3 pt-2">
+-                <button type="button" onClick={() => setExperience(emptyExperience)} className="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
+-                <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Experience Stop</button>
++                <button type="button" onClick={() => setExperience(emptyExperience)} className={clearBtn}>Clear</button>
++                <button type="submit" disabled={saving} className={saveBtn}>Save Experience Stop</button>
+               </div>
+             </form>
+             <div className="space-y-2">
+               {data.experience.map((item) => (
+-                <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-stone-900 border border-stone-800 text-xs">
++                <div key={item.id} className={rowClass}>
+                   <div className="flex items-center gap-3">
+                     {item.logo ? <img src={item.logo} alt="Fatima Azeemi AI Engineer" className="w-10 h-10 rounded-lg object-cover" /> : null}
+                     <div>
+                       <h5 className="font-bold">{item.title}</h5>
+-                      <p className="text-[10px] text-stone-400">{item.company} ({item.duration})</p>
++                      <p className="text-[10px] text-cream-muted dark:text-stone-400">{item.company} ({item.duration})</p>
+                     </div>
+                   </div>
+                   <div className="flex items-center gap-2">
+-                    <button type="button" onClick={() => setExperience({ ...emptyExperience, ...item, logo: item.logo || "" })} className="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-stone-200">Edit</button>
+-                    <button type="button" onClick={() => remove("experience", item.id)} className="px-2.5 py-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30">Delete</button>
++                    <button type="button" onClick={() => setExperience({ ...emptyExperience, ...item, logo: item.logo || "" })} className={editBtn}>Edit</button>
++                    <button type="button" onClick={() => remove("experience", item.id)} className={deleteBtn}>Delete</button>
+                   </div>
+                 </div>
+               ))}
+@@ -418,9 +455,9 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                 event.preventDefault();
+                 persist("education", education.id, education, () => setEducation(emptyEducation));
+               }}
+-              className="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50"
++              className={formCard}
+             >
+-              <h4 className="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
++              <h4 className={formHeading}>
+                 <PlusCircle className="w-4 h-4" /> Add / Edit Education Step
+               </h4>
+               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+@@ -450,23 +487,23 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                 <textarea required rows={2} value={education.description} onChange={(event) => setEducation({ ...education, description: event.target.value })} placeholder="Specialization in AI & Distributed Systems..." className={inputClass} />
+               </Field>
+               <div className="flex justify-end gap-3 pt-2">
+-                <button type="button" onClick={() => setEducation(emptyEducation)} className="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
+-                <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Education Step</button>
++                <button type="button" onClick={() => setEducation(emptyEducation)} className={clearBtn}>Clear</button>
++                <button type="submit" disabled={saving} className={saveBtn}>Save Education Step</button>
+               </div>
+             </form>
+             <div className="space-y-2">
+               {data.education.map((item) => (
+-                <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-stone-900 border border-stone-800 text-xs">
++                <div key={item.id} className={rowClass}>
+                   <div className="flex items-center gap-3">
+                     {item.logo ? <img src={item.logo} alt="Fatima Azeemi AI Engineer" className="w-10 h-10 rounded-lg object-cover" /> : null}
+                     <div>
+                       <h5 className="font-bold">{item.degree}</h5>
+-                      <p className="text-[10px] text-stone-400">{item.school}</p>
++                      <p className="text-[10px] text-cream-muted dark:text-stone-400">{item.school}</p>
+                     </div>
+                   </div>
+                   <div className="flex items-center gap-2">
+-                    <button type="button" onClick={() => setEducation({ ...emptyEducation, ...item, logo: item.logo || "" })} className="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-stone-200">Edit</button>
+-                    <button type="button" onClick={() => remove("education", item.id)} className="px-2.5 py-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30">Delete</button>
++                    <button type="button" onClick={() => setEducation({ ...emptyEducation, ...item, logo: item.logo || "" })} className={editBtn}>Edit</button>
++                    <button type="button" onClick={() => remove("education", item.id)} className={deleteBtn}>Delete</button>
+                   </div>
+                 </div>
+               ))}
+@@ -481,9 +518,9 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                 event.preventDefault();
+                 persist("courses", course.id, course, () => setCourse(emptyCourse));
+               }}
+-              className="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50"
++              className={formCard}
+             >
+-              <h4 className="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
++              <h4 className={formHeading}>
+                 <PlusCircle className="w-4 h-4" /> Add / Edit Certification Record
+               </h4>
+               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+@@ -515,18 +552,18 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                 />
+               </div>
+               <div className="flex justify-end gap-3 pt-2">
+-                <button type="button" onClick={() => setCourse(emptyCourse)} className="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
+-                <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Credential</button>
++                <button type="button" onClick={() => setCourse(emptyCourse)} className={clearBtn}>Clear</button>
++                <button type="submit" disabled={saving} className={saveBtn}>Save Credential</button>
+               </div>
+             </form>
+             <div className="space-y-2">
+               {data.courses.map((item) => (
+-                <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-stone-900 border border-stone-800 text-xs">
++                <div key={item.id} className={rowClass}>
+                   <div className="flex items-center gap-3">
+                     {(item.issuerLogo || item.logo) ? <img src={item.issuerLogo || item.logo} alt="Fatima Azeemi AI Engineer" className="w-10 h-10 rounded-lg object-cover" /> : null}
+                     <div>
+                       <h5 className="font-bold">{item.title}</h5>
+-                      <p className="text-[10px] text-stone-400">{item.issuer}</p>
++                      <p className="text-[10px] text-cream-muted dark:text-stone-400">{item.issuer}</p>
+                     </div>
+                   </div>
+                   <div className="flex items-center gap-2">
+@@ -541,11 +578,11 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                           certificate: item.certificate || "",
+                         })
+                       }
+-                      className="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-stone-200"
++                      className={editBtn}
+                     >
+                       Edit
+                     </button>
+-                    <button type="button" onClick={() => remove("courses", item.id)} className="px-2.5 py-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30">Delete</button>
++                    <button type="button" onClick={() => remove("courses", item.id)} className={deleteBtn}>Delete</button>
+                   </div>
+                 </div>
+               ))}
+@@ -560,9 +597,9 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                 event.preventDefault();
+                 persist("albums", album.id, album, () => setAlbum(emptyAlbum));
+               }}
+-              className="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50"
++              className={formCard}
+             >
+-              <h4 className="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
++              <h4 className={formHeading}>
+                 <PlusCircle className="w-4 h-4" /> Add / Edit Album
+               </h4>
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+@@ -581,8 +618,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                 <input value={album.description} onChange={(event) => setAlbum({ ...album, description: event.target.value })} type="text" placeholder="Short note about this album" className={inputClass} />
+               </Field>
+               <div className="flex justify-end gap-3 pt-2">
+-                <button type="button" onClick={() => setAlbum(emptyAlbum)} className="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
+-                <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Album</button>
++                <button type="button" onClick={() => setAlbum(emptyAlbum)} className={clearBtn}>Clear</button>
++                <button type="submit" disabled={saving} className={saveBtn}>Save Album</button>
+               </div>
+             </form>
+ 
+@@ -590,17 +627,17 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+               {(data.albums || []).map((item) => {
+                 const count = (data.gallery || []).filter((photo) => photo.albumId === item.id).length;
+                 return (
+-                  <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-stone-900 border border-stone-800 text-xs">
++                  <div key={item.id} className={rowClass}>
+                     <div className="flex items-center gap-3 min-w-0">
+-                      {item.cover ? <img src={item.cover} alt="Fatima Azeemi AI Engineer" className="w-12 h-12 rounded-lg object-cover shrink-0" /> : <div className="w-12 h-12 rounded-lg bg-stone-800 shrink-0" />}
++                      {item.cover ? <img src={item.cover} alt="Fatima Azeemi AI Engineer" className="w-12 h-12 rounded-lg object-cover shrink-0" /> : <div className="w-12 h-12 rounded-lg bg-cream-card dark:bg-stone-800 shrink-0" />}
+                       <div className="min-w-0">
+                         <h5 className="font-bold truncate">{item.title}</h5>
+-                        <p className="text-[10px] text-stone-400">{count} photo{count === 1 ? "" : "s"}{item.description ? ` · ${item.description}` : ""}</p>
++                        <p className="text-[10px] text-cream-muted dark:text-stone-400">{count} photo{count === 1 ? "" : "s"}{item.description ? ` · ${item.description}` : ""}</p>
+                       </div>
+                     </div>
+                     <div className="flex items-center gap-2 shrink-0">
+-                      <button type="button" onClick={() => setAlbum({ ...emptyAlbum, ...item, cover: item.cover || "", description: item.description || "" })} className="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-stone-200">Edit</button>
+-                      <button type="button" onClick={() => remove("albums", item.id)} className="px-2.5 py-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30">Delete</button>
++                      <button type="button" onClick={() => setAlbum({ ...emptyAlbum, ...item, cover: item.cover || "", description: item.description || "" })} className={editBtn}>Edit</button>
++                      <button type="button" onClick={() => remove("albums", item.id)} className={deleteBtn}>Delete</button>
+                     </div>
+                   </div>
+                 );
+@@ -612,9 +649,9 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                 event.preventDefault();
+                 persist("gallery", gallery.id, gallery, () => setGallery(emptyGallery));
+               }}
+-              className="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50"
++              className={formCard}
+             >
+-              <h4 className="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
++              <h4 className={formHeading}>
+                 <PlusCircle className="w-4 h-4" /> Add / Edit Gallery Photo
+               </h4>
+               <UploadField
+@@ -641,30 +678,30 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                 </Field>
+               </div>
+               <div className="flex justify-end gap-3 pt-2">
+-                <button type="button" onClick={() => setGallery(emptyGallery)} className="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
+-                <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Photo</button>
++                <button type="button" onClick={() => setGallery(emptyGallery)} className={clearBtn}>Clear</button>
++                <button type="submit" disabled={saving} className={saveBtn}>Save Photo</button>
+               </div>
+             </form>
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+               {(data.gallery || []).map((item) => {
+                 const albumTitle = (data.albums || []).find((entry) => entry.id === item.albumId)?.title || "Uncategorized";
+                 return (
+-                  <div key={item.id} className="rounded-xl overflow-hidden bg-stone-900 border border-stone-800">
++                  <div key={item.id} className="rounded-xl overflow-hidden bg-white/80 dark:bg-stone-900 border border-cream-border dark:border-stone-800">
+                     <img src={item.url} alt={item.caption || "Fatima Azeemi AI Engineer"} className="w-full aspect-square object-cover" />
+                     <div className="p-3 flex items-center justify-between gap-2 text-xs">
+                       <div className="min-w-0">
+-                        <span className="block truncate text-stone-300">{item.caption || "Untitled"}</span>
+-                        <span className="block truncate text-[10px] text-stone-500">{albumTitle}</span>
++                        <span className="block truncate text-cream-text dark:text-stone-300">{item.caption || "Untitled"}</span>
++                        <span className="block truncate text-[10px] text-cream-muted dark:text-stone-500">{albumTitle}</span>
+                       </div>
+                       <div className="flex gap-1 shrink-0">
+                         <button
+                           type="button"
+                           onClick={() => setGallery({ id: item.id, url: item.url || "", caption: item.caption || "", albumId: item.albumId || "" })}
+-                          className="px-2 py-1 rounded bg-stone-800"
++                          className={editBtn}
+                         >
+                           Edit
+                         </button>
+-                        <button type="button" onClick={() => remove("gallery", item.id)} className="px-2 py-1 rounded bg-rose-500/20 text-rose-400">Delete</button>
++                        <button type="button" onClick={() => remove("gallery", item.id)} className={deleteBtn}>Delete</button>
+                       </div>
+                     </div>
+                   </div>
+@@ -681,9 +718,9 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                 event.preventDefault();
+                 persist("publications", publication.id, publication, () => setPublication(emptyPublication));
+               }}
+-              className="glass-panel p-5 rounded-2xl space-y-4 border border-stone-700/50"
++              className={formCard}
+             >
+-              <h4 className="font-heading font-bold text-sm text-amber-400 uppercase tracking-wider flex items-center gap-2">
++              <h4 className={formHeading}>
+                 <PlusCircle className="w-4 h-4" /> Add / Edit Publication
+               </h4>
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+@@ -713,18 +750,18 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                 <textarea rows={3} value={publication.abstract} onChange={(event) => setPublication({ ...publication, abstract: event.target.value })} placeholder="Short summary..." className={inputClass} />
+               </Field>
+               <div className="flex justify-end gap-3 pt-2">
+-                <button type="button" onClick={() => setPublication(emptyPublication)} className="px-4 py-2 rounded-xl border border-stone-700 text-xs">Clear</button>
+-                <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">Save Publication</button>
++                <button type="button" onClick={() => setPublication(emptyPublication)} className={clearBtn}>Clear</button>
++                <button type="submit" disabled={saving} className={saveBtn}>Save Publication</button>
+               </div>
+             </form>
+             <div className="space-y-2">
+               {(data.publications || []).map((item) => (
+-                <div key={item.id} className="flex items-center justify-between p-3 rounded-xl bg-stone-900 border border-stone-800 text-xs">
++                <div key={item.id} className={rowClass}>
+                   <div className="flex items-center gap-3 min-w-0">
+                     {item.cover ? <img src={item.cover} alt="Fatima Azeemi AI Engineer" className="w-12 h-12 rounded-lg object-cover" /> : null}
+                     <div className="min-w-0">
+                       <h5 className="font-bold truncate">{item.title}</h5>
+-                      <p className="text-[10px] text-stone-400 truncate">{[item.venue, item.year].filter(Boolean).join(" · ")}</p>
++                      <p className="text-[10px] text-cream-muted dark:text-stone-400 truncate">{[item.venue, item.year].filter(Boolean).join(" · ")}</p>
+                     </div>
+                   </div>
+                   <div className="flex items-center gap-2">
+@@ -742,11 +779,11 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                           abstract: item.abstract || "",
+                         })
+                       }
+-                      className="px-2.5 py-1 rounded bg-stone-800 hover:bg-stone-700 text-stone-200"
++                      className={editBtn}
+                     >
+                       Edit
+                     </button>
+-                    <button type="button" onClick={() => remove("publications", item.id)} className="px-2.5 py-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30">Delete</button>
++                    <button type="button" onClick={() => remove("publications", item.id)} className={deleteBtn}>Delete</button>
+                   </div>
+                 </div>
+               ))}
+diff --git a/components/CvViewer.js b/components/CvViewer.js
+new file mode 100644
+index 0000000..ffd2d7b
+--- /dev/null
++++ b/components/CvViewer.js
+@@ -0,0 +1,141 @@
++"use client";
++
++import { useEffect, useRef, useState } from "react";
++import { X } from "lucide-react";
++
++// pdf.js is loaded straight from the CDN at runtime (pinned version), so it
++// isn't bundled and needs no build config.
++const PDFJS_VERSION = "4.10.38";
++const PDFJS_BASE = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/legacy/build`;
++
++let pdfjsPromise = null;
++function loadPdfjs() {
++  if (!pdfjsPromise) {
++    pdfjsPromise = import(/* webpackIgnore: true */ `${PDFJS_BASE}/pdf.min.mjs`).then((lib) => {
++      lib.GlobalWorkerOptions.workerSrc = `${PDFJS_BASE}/pdf.worker.min.mjs`;
++      return lib;
++    });
++    pdfjsPromise.catch(() => {
++      pdfjsPromise = null;
++    });
++  }
++  return pdfjsPromise;
++}
++
++const BLOCKED_KEYS = new Set(["s", "p", "c", "a", "x", "u"]);
++
++/**
++ * View-only CV: every page is painted onto a <canvas>, so there is no PDF
++ * toolbar, no download button and no selectable text. Right-click, dragging,
++ * copy and save/print shortcuts are blocked while it is open.
++ */
++export default function CvViewer({ open, onClose, src = "/api/cv", title = "Curriculum Vitae" }) {
++  const pagesRef = useRef(null);
++  const [status, setStatus] = useState("loading"); // loading | ready | error
++
++  useEffect(() => {
++    if (!open) return undefined;
++    let cancelled = false;
++    let pdf = null;
++    setStatus("loading");
++
++    const render = async () => {
++      try {
++        const pdfjs = await loadPdfjs();
++        const task = pdfjs.getDocument({
++          url: src,
++          httpHeaders: { "X-CV-Viewer": "1" },
++          withCredentials: true,
++          disableAutoFetch: true,
++        });
++        pdf = await task.promise;
++        if (cancelled) return;
++
++        const host = pagesRef.current;
++        if (!host) return;
++        host.replaceChildren();
++        const width = Math.min(host.clientWidth || 800, 900);
++        const ratio = Math.min(window.devicePixelRatio || 1, 2);
++
++        for (let number = 1; number <= pdf.numPages; number += 1) {
++          const page = await pdf.getPage(number);
++          if (cancelled) return;
++          const base = page.getViewport({ scale: 1 });
++          const viewport = page.getViewport({ scale: (width / base.width) * ratio });
++          const canvas = document.createElement("canvas");
++          canvas.width = Math.floor(viewport.width);
++          canvas.height = Math.floor(viewport.height);
++          canvas.style.width = "100%";
++          canvas.style.height = "auto";
++          canvas.className = "block rounded-xl shadow-lg bg-white";
++          canvas.setAttribute("aria-label", `${title}, page ${number}`);
++          host.appendChild(canvas);
++          await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
++        }
++        if (!cancelled) setStatus("ready");
++      } catch {
++        if (!cancelled) setStatus("error");
++      }
++    };
++
++    render();
++    return () => {
++      cancelled = true;
++      pdf?.destroy();
++    };
++  }, [open, src, title]);
++
++  useEffect(() => {
++    if (!open) return undefined;
++    const onKey = (event) => {
++      if (event.key === "Escape") onClose();
++      const key = event.key.toLowerCase();
++      if ((event.ctrlKey || event.metaKey) && BLOCKED_KEYS.has(key)) event.preventDefault();
++      if (key === "printscreen") event.preventDefault();
++    };
++    const block = (event) => event.preventDefault();
++    window.addEventListener("keydown", onKey, true);
++    document.addEventListener("copy", block, true);
++    document.addEventListener("cut", block, true);
++    const { overflow } = document.body.style;
++    document.body.style.overflow = "hidden";
++    return () => {
++      window.removeEventListener("keydown", onKey, true);
++      document.removeEventListener("copy", block, true);
++      document.removeEventListener("cut", block, true);
++      document.body.style.overflow = overflow;
++    };
++  }, [open, onClose]);
++
++  if (!open) return null;
++
++  const block = (event) => event.preventDefault();
++
++  return (
++    <div
++      className="cv-viewer fixed inset-0 z-[60] bg-stone-900/50 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6"
++      onContextMenu={block}
++      onDragStart={block}
++      role="dialog"
++      aria-modal="true"
++      aria-label={title}
++    >
++      <div className="w-full max-w-4xl h-full max-h-[94vh] flex flex-col rounded-3xl bg-cream-bg dark:bg-dark-surface border border-cream-border dark:border-dark-border shadow-2xl overflow-hidden">
++        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-cream-border dark:border-dark-border">
++          <div>
++            <h3 className="font-heading text-lg font-bold">{title}</h3>
++            <p className="text-[11px] text-cream-muted dark:text-dark-muted">View only</p>
++          </div>
++          <button type="button" onClick={onClose} className="p-2 rounded-full border border-cream-border dark:border-dark-border hover:bg-cream-card dark:hover:bg-dark-card transition-colors" aria-label="Close CV">
++            <X className="w-4 h-4" />
++          </button>
++        </div>
++        <div className="relative flex-1 overflow-y-auto overscroll-contain px-3 sm:px-8 py-6 bg-cream-surface dark:bg-dark-bg">
++          {status === "loading" && <p className="text-center text-xs font-mono text-cream-muted dark:text-dark-muted py-10">Loading CV…</p>}
++          {status === "error" && <p className="text-center text-xs font-mono text-rose-600 dark:text-rose-400 py-10">The CV could not be loaded. Please try again later.</p>}
++          <div ref={pagesRef} className="mx-auto max-w-[900px] space-y-6 pointer-events-none" />
++        </div>
++      </div>
++    </div>
++  );
++}
+diff --git a/components/GalleryView.js b/components/GalleryView.js
+new file mode 100644
+index 0000000..ead6b05
+--- /dev/null
++++ b/components/GalleryView.js
+@@ -0,0 +1,441 @@
++"use client";
++
++import { useCallback, useEffect, useMemo, useRef, useState } from "react";
++import Link from "next/link";
++import { useRouter } from "next/navigation";
++import {
++  ArrowLeft,
++  ChevronLeft,
++  ChevronRight,
++  Edit3,
++  FolderOpen,
++  FolderPlus,
++  Image as ImageIcon,
++  Moon,
++  Star,
++  Sun,
++  Trash2,
++  Upload,
++  X,
++} from "lucide-react";
++import { api, compressGalleryImage } from "@/lib/client";
++
++const UNCATEGORIZED = "uncategorized";
++const emptyAlbum = { id: "", title: "", description: "", cover: "" };
++
++const inputClass =
++  "w-full px-3 py-2 rounded-xl bg-white dark:bg-stone-900 border border-cream-border dark:border-stone-700 text-xs text-cream-text dark:text-stone-100 placeholder:text-stone-400 focus:outline-none focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20";
++const pillBtn =
++  "inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-full border border-cream-border dark:border-dark-border text-xs font-medium hover:bg-cream-card dark:hover:bg-dark-card transition-colors disabled:opacity-60";
++const amberBtn =
++  "inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-500 text-stone-950 text-xs font-bold hover:bg-amber-400 transition-colors disabled:opacity-60";
++
++function toggleTheme() {
++  const next = document.documentElement.classList.contains("dark") ? "light" : "dark";
++  document.documentElement.classList.remove("dark", "light");
++  document.documentElement.classList.add(next);
++  localStorage.setItem("theme", next);
++}
++
++// Store the image first and save only its URL: record fields are capped at
++// 2,000 characters, which a raw data URL always exceeds.
++async function uploadImage(file) {
++  const dataUrl = await compressGalleryImage(file);
++  const { url } = await api("/api/upload", { method: "POST", body: JSON.stringify({ dataUrl }) });
++  return url;
++}
++
++function plural(count, word) {
++  return `${count} ${word}${count === 1 ? "" : "s"}`;
++}
++
++export default function GalleryView({ initialData, initialAdmin, albumId }) {
++  const router = useRouter();
++  const [data, setData] = useState({ albums: [], gallery: [], ...initialData });
++  const isAdmin = Boolean(initialAdmin);
++  const [error, setError] = useState("");
++  const [busy, setBusy] = useState(false);
++  const [albumForm, setAlbumForm] = useState(null); // null | album fields
++  const [caption, setCaption] = useState("");
++  const [lightbox, setLightbox] = useState(-1);
++
++  const albums = data.albums || [];
++  const photos = data.gallery || [];
++  const albumIds = useMemo(() => new Set(albums.map((album) => album.id)), [albums]);
++  // Photos with no album, or whose album was deleted, count as uncategorized.
++  const isLoose = useCallback((photo) => !photo.albumId || !albumIds.has(photo.albumId), [albumIds]);
++  const loosePhotos = photos.filter(isLoose);
++
++  const viewingLoose = albumId === UNCATEGORIZED;
++  const album = albumId
++    ? viewingLoose
++      ? { id: UNCATEGORIZED, title: "Uncategorized", description: "Photos that aren't in an album yet." }
++      : albums.find((item) => item.id === albumId) || null
++    : null;
++  const albumPhotos = album ? (viewingLoose ? loosePhotos : photos.filter((photo) => photo.albumId === album.id)) : [];
++
++  async function reload() {
++    const next = await api("/api/content");
++    setData({ albums: [], gallery: [], ...next });
++  }
++
++  async function run(task) {
++    setError("");
++    setBusy(true);
++    try {
++      await task();
++    } catch (err) {
++      setError(err.message);
++    } finally {
++      setBusy(false);
++    }
++  }
++
++  function saveAlbum(event) {
++    event.preventDefault();
++    const { id, title, description, cover } = albumForm;
++    run(async () => {
++      const payload = JSON.stringify({ title, description, cover });
++      const saved = id
++        ? await api(`/api/albums/${id}`, { method: "PUT", body: payload })
++        : await api("/api/albums", { method: "POST", body: payload });
++      setAlbumForm(null);
++      await reload();
++      if (!id && saved?.id) router.push(`/gallery/${saved.id}`);
++    });
++  }
++
++  async function onAlbumCover(event) {
++    const file = event.target.files?.[0];
++    event.target.value = "";
++    if (!file) return;
++    run(async () => {
++      const cover = await uploadImage(file);
++      setAlbumForm((current) => ({ ...current, cover }));
++    });
++  }
++
++  function deleteAlbum(target) {
++    const count = photos.filter((photo) => photo.albumId === target.id).length;
++    const note = count ? ` Its ${plural(count, "photo")} will move to Uncategorized.` : "";
++    if (!window.confirm(`Delete the album "${target.title}"?${note}`)) return;
++    run(async () => {
++      await api(`/api/albums/${target.id}`, { method: "DELETE" });
++      await reload();
++      if (albumId === target.id) router.push("/gallery");
++    });
++  }
++
++  async function onUpload(event) {
++    const files = Array.from(event.target.files || []);
++    event.target.value = "";
++    if (!files.length) return;
++    run(async () => {
++      for (const file of files) {
++        const url = await uploadImage(file);
++        await api("/api/gallery", {
++          method: "POST",
++          body: JSON.stringify({
++            url,
++            caption: files.length === 1 && caption ? caption : file.name.replace(/\.[^.]+$/, ""),
++            albumId: viewingLoose ? "" : album.id,
++          }),
++        });
++      }
++      setCaption("");
++      await reload();
++    });
++  }
++
++  function deletePhoto(photo) {
++    if (!window.confirm("Delete this photo?")) return;
++    run(async () => {
++      await api(`/api/gallery/${photo.id}`, { method: "DELETE" });
++      setLightbox(-1);
++      await reload();
++    });
++  }
++
++  function makeCover(photo) {
++    run(async () => {
++      await api(`/api/albums/${album.id}`, {
++        method: "PUT",
++        body: JSON.stringify({ title: album.title, description: album.description || "", cover: photo.url }),
++      });
++      await reload();
++    });
++  }
++
++  return (
++    <div className="min-h-screen">
++      <header className="sticky top-0 z-40 px-4 sm:px-8 py-4">
++        <nav className="max-w-6xl mx-auto glass-panel rounded-full px-5 py-3 flex items-center justify-between shadow-lg">
++          <Link href="/" className="inline-flex items-center gap-2 text-xs font-medium text-cream-muted dark:text-dark-muted hover:text-cream-text dark:hover:text-dark-text transition-colors">
++            <ArrowLeft className="w-4 h-4" /> Portfolio
++          </Link>
++          <Link href="/gallery" className="font-heading font-bold text-lg tracking-tight">0xfatima</Link>
++          <button type="button" onClick={toggleTheme} aria-label="Toggle Theme" className="p-2 rounded-full border border-cream-border dark:border-dark-border hover:bg-cream-surface dark:hover:bg-dark-surface transition-all">
++            <Sun className="w-4 h-4 hidden dark:block" />
++            <Moon className="w-4 h-4 block dark:hidden" />
++          </button>
++        </nav>
++      </header>
++
++      <main className="max-w-6xl mx-auto px-4 sm:px-8 pt-8 pb-24">
++        {albumId && !album ? (
++          <div className="text-center py-24 space-y-4">
++            <h1 className="font-heading text-3xl font-bold">Album not found</h1>
++            <p className="text-sm text-cream-muted dark:text-dark-muted">It may have been renamed or removed.</p>
++            <Link href="/gallery" className={pillBtn}>
++              <ArrowLeft className="w-3.5 h-3.5" /> All albums
++            </Link>
++          </div>
++        ) : (
++          <>
++            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
++              <div>
++                {album ? (
++                  <Link href="/gallery" className="inline-flex items-center gap-1.5 text-xs text-cream-muted dark:text-dark-muted hover:text-cream-text dark:hover:text-dark-text mb-3">
++                    <ArrowLeft className="w-3.5 h-3.5" /> All albums
++                  </Link>
++                ) : (
++                  <span className="text-xs font-mono uppercase tracking-widest text-cream-muted dark:text-dark-muted">Photography</span>
++                )}
++                <h1 className="section-heading font-heading text-3xl sm:text-4xl font-bold mt-1">{album ? album.title : "Photo Gallery"}</h1>
++                <p className="text-sm text-cream-muted dark:text-dark-muted mt-2 max-w-xl">
++                  {album
++                    ? `${album.description ? `${album.description} · ` : ""}${plural(albumPhotos.length, "photo")}`
++                    : "Albums from work, travel and everything in between."}
++                </p>
++              </div>
++
++              {isAdmin && (
++                <div className="flex flex-wrap items-center gap-2">
++                  {!album && (
++                    <button type="button" onClick={() => setAlbumForm({ ...emptyAlbum })} className={amberBtn}>
++                      <FolderPlus className="w-3.5 h-3.5" /> New album
++                    </button>
++                  )}
++                  {album && (
++                    <>
++                      <input
++                        value={caption}
++                        onChange={(event) => setCaption(event.target.value)}
++                        type="text"
++                        placeholder="Caption (single upload)"
++                        className="px-3 py-1.5 rounded-full border border-cream-border dark:border-dark-border bg-transparent text-xs focus:outline-none"
++                      />
++                      <label className={`${amberBtn} cursor-pointer`}>
++                        <Upload className="w-3.5 h-3.5" /> {busy ? "Working…" : "Upload photos"}
++                        <input type="file" accept="image/*" multiple className="hidden" disabled={busy} onChange={onUpload} />
++                      </label>
++                      {!viewingLoose && (
++                        <>
++                          <button type="button" onClick={() => setAlbumForm({ ...emptyAlbum, ...album, description: album.description || "", cover: album.cover || "" })} className={pillBtn}>
++                            <Edit3 className="w-3.5 h-3.5" /> Edit album
++                          </button>
++                          <button type="button" onClick={() => deleteAlbum(album)} className={`${pillBtn} text-rose-600 dark:text-rose-400`}>
++                            <Trash2 className="w-3.5 h-3.5" /> Delete
++                          </button>
++                        </>
++                      )}
++                    </>
++                  )}
++                </div>
++              )}
++            </div>
++
++            {error && <p className="mb-6 text-xs font-mono text-rose-600 dark:text-rose-400">{error}</p>}
++
++            {isAdmin && albumForm && (
++              <form onSubmit={saveAlbum} className="mb-10 p-5 rounded-2xl space-y-4 border border-cream-border dark:border-dark-border bg-cream-surface/80 dark:bg-dark-surface">
++                <h2 className="font-heading font-bold text-sm uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center gap-2">
++                  <FolderPlus className="w-4 h-4" /> {albumForm.id ? "Edit album" : "Create an album"}
++                </h2>
++                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
++                  <label className="block">
++                    <span className="text-[10px] font-mono uppercase text-cream-muted dark:text-dark-muted block mb-1">Title</span>
++                    <input required value={albumForm.title} onChange={(event) => setAlbumForm({ ...albumForm, title: event.target.value })} placeholder="e.g. Hackathons 2026" className={inputClass} />
++                  </label>
++                  <label className="block">
++                    <span className="text-[10px] font-mono uppercase text-cream-muted dark:text-dark-muted block mb-1">Description</span>
++                    <input value={albumForm.description} onChange={(event) => setAlbumForm({ ...albumForm, description: event.target.value })} placeholder="Optional short note" className={inputClass} />
++                  </label>
++                </div>
++                <div className="flex flex-wrap items-center gap-3">
++                  {albumForm.cover ? (
++                    <img src={albumForm.cover} alt="" className="h-14 w-20 rounded-lg object-cover border border-cream-border dark:border-dark-border" />
++                  ) : (
++                    <div className="h-14 w-20 rounded-lg flex items-center justify-center bg-cream-card dark:bg-dark-card text-cream-muted">
++                      <ImageIcon className="w-5 h-5" />
++                    </div>
++                  )}
++                  <label className={`${pillBtn} cursor-pointer`}>
++                    <Upload className="w-3.5 h-3.5" /> Cover image (optional)
++                    <input type="file" accept="image/*" className="hidden" onChange={onAlbumCover} />
++                  </label>
++                  <span className="text-[11px] text-cream-muted dark:text-dark-muted">Without a cover, the first photo is used.</span>
++                </div>
++                <div className="flex justify-end gap-2">
++                  <button type="button" onClick={() => setAlbumForm(null)} className={pillBtn}>Cancel</button>
++                  <button type="submit" disabled={busy} className={amberBtn}>{albumForm.id ? "Save album" : "Create album"}</button>
++                </div>
++              </form>
++            )}
++
++            {!album ? (
++              <AlbumGrid albums={albums} photos={photos} loosePhotos={loosePhotos} isAdmin={isAdmin} onEdit={(item) => setAlbumForm({ ...emptyAlbum, ...item, description: item.description || "", cover: item.cover || "" })} onDelete={deleteAlbum} />
++            ) : albumPhotos.length ? (
++              <div className="gallery-masonry">
++                {albumPhotos.map((photo, index) => (
++                  <figure key={photo.id} className="relative group rounded-2xl overflow-hidden bg-cream-card dark:bg-dark-card card-glow">
++                    <button type="button" onClick={() => setLightbox(index)} className="block w-full" aria-label={`Open ${photo.caption || "photo"}`}>
++                      <img src={photo.url} alt={photo.caption || "Photo by Fatima Azeemi"} loading="lazy" className="w-full h-auto block transition-transform duration-500 group-hover:scale-[1.03]" />
++                    </button>
++                    {photo.caption && (
++                      <figcaption className="pointer-events-none absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-black/75 to-transparent text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
++                        {photo.caption}
++                      </figcaption>
++                    )}
++                    {isAdmin && (
++                      <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
++                        {!viewingLoose && (
++                          <button type="button" onClick={() => makeCover(photo)} className="p-1.5 rounded-full bg-black/55 hover:bg-amber-500 text-white" aria-label="Use as album cover" title="Use as album cover">
++                            <Star className="w-3.5 h-3.5" />
++                          </button>
++                        )}
++                        <button type="button" onClick={() => deletePhoto(photo)} className="p-1.5 rounded-full bg-black/55 hover:bg-rose-500 text-white" aria-label="Delete photo" title="Delete photo">
++                          <Trash2 className="w-3.5 h-3.5" />
++                        </button>
++                      </div>
++                    )}
++                  </figure>
++                ))}
++              </div>
++            ) : (
++              <p className="coming-soon">{isAdmin ? "No photos yet. Upload some above." : "Coming soon"}</p>
++            )}
++          </>
++        )}
++      </main>
++
++      {lightbox >= 0 && albumPhotos[lightbox] && (
++        <Lightbox photos={albumPhotos} index={lightbox} onChange={setLightbox} onClose={() => setLightbox(-1)} />
++      )}
++    </div>
++  );
++}
++
++function AlbumGrid({ albums, photos, loosePhotos, isAdmin, onEdit, onDelete }) {
++  if (!albums.length && !loosePhotos.length) {
++    return <p className="coming-soon">{isAdmin ? "No albums yet. Create your first one." : "Coming soon"}</p>;
++  }
++  return (
++    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
++      {albums.map((album) => {
++        const inAlbum = photos.filter((photo) => photo.albumId === album.id);
++        const cover = album.cover || inAlbum[0]?.url || "";
++        return (
++          <div key={album.id} className="relative group">
++            <Link href={`/gallery/${album.id}`} className="block relative rounded-3xl overflow-hidden aspect-[4/3] bg-cream-card dark:bg-dark-card card-glow border border-cream-border/60 dark:border-dark-border/60">
++              {cover ? (
++                <img src={cover} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
++              ) : (
++                <div className="absolute inset-0 flex items-center justify-center text-cream-muted dark:text-dark-muted">
++                  <FolderOpen className="w-10 h-10" />
++                </div>
++              )}
++              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
++              <div className="absolute bottom-0 inset-x-0 p-5 text-white">
++                <h2 className="font-heading font-bold text-xl">{album.title}</h2>
++                <p className="text-[11px] text-white/80 mt-0.5">
++                  {plural(inAlbum.length, "photo")}
++                  {album.description ? ` · ${album.description}` : ""}
++                </p>
++              </div>
++            </Link>
++            {isAdmin && (
++              <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
++                <button type="button" onClick={() => onEdit(album)} className="p-1.5 rounded-full bg-black/55 hover:bg-amber-500 text-white" aria-label={`Edit ${album.title}`}>
++                  <Edit3 className="w-3.5 h-3.5" />
++                </button>
++                <button type="button" onClick={() => onDelete(album)} className="p-1.5 rounded-full bg-black/55 hover:bg-rose-500 text-white" aria-label={`Delete ${album.title}`}>
++                  <Trash2 className="w-3.5 h-3.5" />
++                </button>
++              </div>
++            )}
++          </div>
++        );
++      })}
++      {loosePhotos.length ? (
++        <Link href={`/gallery/${UNCATEGORIZED}`} className="group block relative rounded-3xl overflow-hidden aspect-[4/3] bg-cream-card dark:bg-dark-card card-glow border border-cream-border/60 dark:border-dark-border/60">
++          <img src={loosePhotos[0].url} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
++          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
++          <div className="absolute bottom-0 inset-x-0 p-5 text-white">
++            <h2 className="font-heading font-bold text-xl">Uncategorized</h2>
++            <p className="text-[11px] text-white/80 mt-0.5">{plural(loosePhotos.length, "photo")}</p>
++          </div>
++        </Link>
++      ) : null}
++    </div>
++  );
++}
++
++function Lightbox({ photos, index, onChange, onClose }) {
++  const touchX = useRef(null);
++  const count = photos.length;
++  const photo = photos[index];
++  const go = useCallback((step) => onChange((index + step + count) % count), [index, count, onChange]);
++
++  useEffect(() => {
++    const onKey = (event) => {
++      if (event.key === "Escape") onClose();
++      if (event.key === "ArrowRight") go(1);
++      if (event.key === "ArrowLeft") go(-1);
++    };
++    window.addEventListener("keydown", onKey);
++    const { overflow } = document.body.style;
++    document.body.style.overflow = "hidden";
++    return () => {
++      window.removeEventListener("keydown", onKey);
++      document.body.style.overflow = overflow;
++    };
++  }, [go, onClose]);
++
++  return (
++    <div
++      className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-4"
++      onClick={(event) => event.target === event.currentTarget && onClose()}
++      onTouchStart={(event) => {
++        touchX.current = event.touches[0].clientX;
++      }}
++      onTouchEnd={(event) => {
++        if (touchX.current == null) return;
++        const dx = event.changedTouches[0].clientX - touchX.current;
++        touchX.current = null;
++        if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1);
++      }}
++      role="dialog"
++      aria-modal="true"
++    >
++      <button type="button" onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white" aria-label="Close">
++        <X className="w-5 h-5" />
++      </button>
++      {count > 1 && (
++        <>
++          <button type="button" onClick={() => go(-1)} className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white" aria-label="Previous photo">
++            <ChevronLeft className="w-6 h-6" />
++          </button>
++          <button type="button" onClick={() => go(1)} className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white" aria-label="Next photo">
++            <ChevronRight className="w-6 h-6" />
++          </button>
++        </>
++      )}
++      <img key={photo.id} src={photo.url} alt={photo.caption || "Photo by Fatima Azeemi"} className="max-w-full max-h-[80vh] rounded-xl object-contain shadow-2xl" />
++      <div className="mt-4 text-center text-white/85 text-sm">
++        {photo.caption && <p className="font-medium">{photo.caption}</p>}
++        <p className="text-[11px] font-mono text-white/55 mt-1">{index + 1} / {count}</p>
++      </div>
++    </div>
++  );
++}
+diff --git a/components/PixelPortrait.js b/components/PixelPortrait.js
+index 363f26b..38708df 100644
+--- a/components/PixelPortrait.js
++++ b/components/PixelPortrait.js
+@@ -28,7 +28,32 @@ const BLEND_MS = 1400; // full size → blended into the page
+ const STEPS = [0.07, 0.11, 0.16, 0.23, 0.32, 0.44, 0.6, 0.8, 1];
+ const START_SCALE = 0.2;
+ 
++// Width of the ragged, pixel-dissolving border, as a fraction of the canvas.
++const EDGE_SIDE = 0.18;
++const EDGE_TOP = 0.12;
++const EDGE_BOTTOM = 0.12;
++
+ const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
++const smoothstep = (edge, x) => {
++  const t = Math.min(1, Math.max(0, x / edge));
++  return t * t * (3 - 2 * t);
++};
++
++/** Stable per-cell noise in [0, 1), so the dissolve pattern doesn't shimmer. */
++function cellNoise(x, y, cols) {
++  let h = (x * 374761393 + y * 668265263 + cols * 2147483647) | 0;
++  h = Math.imul(h ^ (h >>> 13), 1274126177);
++  h ^= h >>> 16;
++  return (h >>> 0) / 4294967296;
++}
++
++/** 1 in the middle, falling to 0 towards the left, right, top and bottom edges. */
++function edgeKeep(x, y, cols, rows) {
++  const side = Math.min(x + 0.5, cols - x - 0.5) / cols;
++  const top = (y + 0.5) / rows;
++  const bottom = (rows - y - 0.5) / rows;
++  return smoothstep(EDGE_SIDE, side) * smoothstep(EDGE_TOP, top) * smoothstep(EDGE_BOTTOM, bottom);
++}
+ const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+ const lerp = (a, b, t) => a + (b - a) * t;
+ const rgb = ([r, g, b]) => `rgb(${r},${g},${b})`;
+@@ -191,9 +216,17 @@ function drawPoster(canvas, layout, levels, cols) {
+   const cw = W / cols;
+   const ch = H / rows;
+   ctx.clearRect(0, 0, W, H);
++  const dropped = [];
+ 
+   for (let y = 0; y < rows; y += 1) {
+     for (let x = 0; x < cols; x += 1) {
++      // Near the edges, cells drop out at random (and the survivors fade), so
++      // the picture breaks up into loose pixels instead of ending on a line.
++      const keep = edgeKeep(x, y, cols, rows);
++      if (keep < 1 && cellNoise(x, y, cols) > keep) {
++        dropped.push(x, y);
++        continue;
++      }
+       const idx = y * cols + x;
+       const i = idx * 4;
+       const xRatio = (x + 0.5) / cols;
+@@ -205,6 +238,7 @@ function drawPoster(canvas, layout, levels, cols) {
+         const lum = Math.min(1, Math.max(0, (raw - levels.lo) / levels.range));
+         color = pickColor(lum, xRatio);
+       }
++      ctx.globalAlpha = keep < 1 ? 0.35 + 0.65 * keep : 1;
+       ctx.fillStyle = rgb(color);
+       ctx.fillRect(Math.floor(x * cw), Math.floor(y * ch), Math.ceil(cw) + 1, Math.ceil(ch) + 1);
+     }
+@@ -224,14 +258,32 @@ function drawPoster(canvas, layout, levels, cols) {
+     ctx.moveTo(0, p);
+     ctx.lineTo(W, p);
+   }
++  ctx.globalAlpha = 1;
+   ctx.stroke();
++
++  // Clear the grid back out of dropped cells so no straight lines remain there.
++  for (let n = 0; n < dropped.length; n += 2) {
++    ctx.clearRect(Math.floor(dropped[n] * cw), Math.floor(dropped[n + 1] * ch), Math.ceil(cw) + 1, Math.ceil(ch) + 1);
++  }
+ }
+ 
+-/** Edge fade: hard-edged tile while small, soft vignette once blended. */
++/**
++ * Edge fade. The radial vignette alone was wider than the box, so it got cut
++ * off by the left/right edges and left hard vertical lines while the tile
++ * grew. It is now intersected (see globals.css) with side and top/bottom fades
++ * that always reach full transparency before the edge.
++ */
+ function maskFor(t) {
+   const inner = lerp(55, 38, t);
+   const outer = lerp(100, 92, t);
+-  return `radial-gradient(ellipse 62% 60% at 50% 45%, #000 ${inner}%, transparent ${outer}%)`;
++  const side = lerp(12, 20, t);
++  const top = lerp(8, 4, t);
++  const bottom = lerp(88, 80, t);
++  return [
++    `radial-gradient(ellipse 62% 60% at 50% 45%, #000 ${inner}%, transparent ${outer}%)`,
++    `linear-gradient(to right, transparent 0%, #000 ${side}%, #000 ${100 - side}%, transparent 100%)`,
++    `linear-gradient(to bottom, transparent 0%, #000 ${top}%, #000 ${bottom}%, transparent 100%)`,
++  ].join(", ");
+ }
+ 
+ export default function PixelPortrait({ src, alt, start = true, className = "" }) {
+diff --git a/components/PortfolioSite.js b/components/PortfolioSite.js
+index 59a56d1..acb749a 100644
+--- a/components/PortfolioSite.js
++++ b/components/PortfolioSite.js
+@@ -1,18 +1,16 @@
+ "use client";
+ 
+ import { useEffect, useRef, useState } from "react";
++import Link from "next/link";
+ import {
+-  ArrowLeft,
+   ArrowUp,
+   ArrowUpRight,
+   Award,
+   BookOpen,
+   Camera,
+   ChevronDown,
+-  Download,
+   Edit3,
+   FileText,
+-  FolderOpen,
+   Images,
+   Mail,
+   Menu,
+@@ -22,13 +20,13 @@ import {
+   Shield,
+   ShieldCheck,
+   Sun,
+-  Trash2,
+-  Upload,
+   X,
+ } from "lucide-react";
+ import AdminDashboard from "@/components/AdminDashboard";
++import CvViewer from "@/components/CvViewer";
+ import PixelPortrait from "@/components/PixelPortrait";
+-import { api, compressGalleryImage } from "@/lib/client";
++import { api } from "@/lib/client";
++import { SKILL_ROWS } from "@/lib/skills";
+ 
+ // Swap this for your own photo (e.g. drop it in /public and use "/portrait.jpg").
+ // External hosts must allow CORS so the pixel effect can read the image.
+@@ -94,23 +92,75 @@ function ComingSoon() {
+   return <p className="coming-soon">Coming soon</p>;
+ }
+ 
+-function SkillTrack({ id, reverse, skills, iconsOnly = false }) {
++const MARQUEE_SPEED = 42; // px per second, same pace on every row
++
++function SkillChip({ skill }) {
++  return (
++    <span className="marquee-item skill-chip text-sm font-semibold tracking-wide" title={skill.name}>
++      {skill.icon ? (
++        <img
++          src={skill.icon}
++          alt=""
++          className="skill-chip__icon"
++          onError={(event) => {
++            event.currentTarget.style.display = "none";
++          }}
++        />
++      ) : null}
++      {skill.name}
++    </span>
++  );
++}
++
++/**
++ * One endless marquee row. The skill set is repeated until a group is at least
++ * as wide as the row, and the track holds two such groups, so moving it by
++ * exactly half its width loops seamlessly with no gap or restart.
++ */
++function SkillTrack({ label, reverse, skills }) {
++  const wrapRef = useRef(null);
++  const groupRef = useRef(null);
++  const [copies, setCopies] = useState(2);
++  const [duration, setDuration] = useState(40);
++
++  useEffect(() => {
++    const wrap = wrapRef.current;
++    const group = groupRef.current;
++    if (!wrap || !group) return undefined;
++
++    const measure = () => {
++      const setWidth = group.getBoundingClientRect().width / copies;
++      if (!setWidth) return;
++      const needed = Math.max(1, Math.ceil(wrap.clientWidth / setWidth));
++      if (needed !== copies) {
++        setCopies(needed);
++        return;
++      }
++      setDuration(Math.max(12, (setWidth * needed) / MARQUEE_SPEED));
++    };
++
++    // Icons that failed to load before hydration never fire onError: hide them.
++    group.parentElement?.querySelectorAll("img").forEach((img) => {
++      if (img.complete && img.naturalWidth === 0) img.style.display = "none";
++    });
++
++    measure();
++    const observer = new ResizeObserver(measure);
++    observer.observe(wrap);
++    observer.observe(group);
++    return () => observer.disconnect();
++  }, [skills, copies]);
++
+   if (!skills.length) return null;
+-  const loop = [...skills, ...skills];
++  const group = Array.from({ length: copies }, (_, copy) =>
++    skills.map((skill) => <SkillChip key={`${copy}-${skill.id || skill.name}`} skill={skill} />)
++  );
++
+   return (
+-    <div className="overflow-hidden whitespace-nowrap flex">
+-      <div id={id} className={`${reverse ? "animate-marquee-reverse" : "animate-marquee"} flex items-center gap-4 text-sm font-semibold tracking-wide`}>
+-        {loop.map((skill, index) =>
+-          iconsOnly ? (
+-            <span key={`${skill.id || skill.name}-${index}`} className="skill-icon-chip" title={skill.name}>
+-              {skill.icon ? <img src={skill.icon} alt={DEFAULT_ALT} /> : <span className="text-[10px] font-mono">{(skill.name || "?").slice(0, 2)}</span>}
+-            </span>
+-          ) : (
+-            <span key={`${skill.id || skill.name}-${index}`} className="px-5 py-2.5 rounded-full border border-cream-border dark:border-dark-border bg-stone-500/10 backdrop-blur-md">
+-              {skill.name}
+-            </span>
+-          )
+-        )}
++    <div ref={wrapRef} className="marquee" role="group" aria-label={label}>
++      <div className={`marquee-track${reverse ? " is-reverse" : ""}`} style={{ "--marquee-duration": `${duration}s` }}>
++        <div ref={groupRef} className="marquee-group">{group}</div>
++        <div className="marquee-group" aria-hidden="true">{group}</div>
+       </div>
+     </div>
+   );
+@@ -125,12 +175,7 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
+   const [splashDone, setSplashDone] = useState(false);
+   const [brandOn, setBrandOn] = useState(false);
+   const [shapes] = useState(INITIAL_SHAPES);
+-  const [docModal, setDocModal] = useState(null);
+-  const [galleryOpen, setGalleryOpen] = useState(false);
+-  const [galleryError, setGalleryError] = useState("");
+-  const [galleryCaption, setGalleryCaption] = useState("");
+-  const [galleryAlbumId, setGalleryAlbumId] = useState("");
+-  const [activeAlbumId, setActiveAlbumId] = useState(null);
++  const [cvOpen, setCvOpen] = useState(false);
+   const [projectGallery, setProjectGallery] = useState(null);
+   const [adminAuthOpen, setAdminAuthOpen] = useState(false);
+   const [dashOpen, setDashOpen] = useState(false);
+@@ -321,60 +366,12 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
+     setIsAdmin(false);
+     setDashOpen(false);
+     setAdminAuthOpen(false);
+-    setGalleryError("");
+   }
+ 
+-  async function onGalleryFile(event) {
+-    const file = event.target.files?.[0];
+-    event.target.value = "";
+-    if (!file) return;
+-    if (!isAdmin) {
+-      setLoginStatus("");
+-      setAdminAuthOpen(true);
+-      return;
+-    }
+-    setGalleryError("");
+-    try {
+-      const dataUrl = await compressGalleryImage(file);
+-      await api("/api/gallery", {
+-        method: "POST",
+-        body: JSON.stringify({
+-          url: dataUrl,
+-          caption: galleryCaption || file.name.replace(/\.[^.]+$/, ""),
+-          albumId: galleryAlbumId || activeAlbumId || "",
+-        }),
+-      });
+-      setGalleryCaption("");
+-      await reload();
+-    } catch (err) {
+-      setGalleryError(err.message);
+-    }
+-  }
+-
+-  async function deleteGalleryPhoto(id) {
+-    try {
+-      await api(`/api/gallery/${id}`, { method: "DELETE" });
+-      await reload();
+-    } catch (err) {
+-      setGalleryError(err.message);
+-    }
+-  }
+-
+-  const row1 = data.skills.filter((skill) => (skill.row || 1) === 1);
+-  const row2 = data.skills.filter((skill) => skill.row === 2);
+-  const row3 = data.skills.filter((skill) => skill.row === 3);
+-  const albums = data.albums || [];
+-  const galleryPhotos = data.gallery || [];
+-  const uncategorizedPhotos = galleryPhotos.filter((photo) => !photo.albumId);
+-  const viewingUncategorized = activeAlbumId === "__uncategorized__";
+-  const activeAlbum = viewingUncategorized
+-    ? { id: "__uncategorized__", title: "Uncategorized", description: "Photos not assigned to an album." }
+-    : albums.find((album) => album.id === activeAlbumId) || null;
+-  const photosInView = viewingUncategorized
+-    ? uncategorizedPhotos
+-    : activeAlbumId
+-      ? galleryPhotos.filter((photo) => (photo.albumId || "") === activeAlbumId)
+-      : [];
++  const skillRows = SKILL_ROWS.map((item) => ({
++    ...item,
++    skills: data.skills.filter((skill) => (Number(skill.row) || 1) === item.row),
++  }));
+ 
+   return (
+     <>
+@@ -409,11 +406,11 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
+             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+           </span>
+-          <span className="text-xs font-mono font-medium text-amber-500">Admin Mode Active</span>
++          <span className="text-xs font-mono font-medium text-amber-700 dark:text-amber-500">Admin Mode Active</span>
+           <button type="button" onClick={() => setDashOpen(true)} className="px-3 py-1 bg-amber-500 text-stone-950 font-semibold rounded-full text-[11px] hover:bg-amber-400 transition-colors">
+             Manage Database
+           </button>
+-          <button type="button" onClick={logout} className="px-3 py-1 rounded-full border border-stone-500/40 text-xs text-stone-300 hover:text-white hover:border-stone-300 transition-colors">
++          <button type="button" onClick={logout} className="px-3 py-1 rounded-full border border-stone-500/40 text-xs text-cream-muted hover:text-cream-text dark:text-stone-300 dark:hover:text-white hover:border-stone-500 dark:hover:border-stone-300 transition-colors">
+             Exit
+           </button>
+         </div>
+@@ -454,7 +451,7 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
+               </button>
+               <div className={`absolute right-0 top-full z-50 w-52 pt-2 ${linksOpen ? "block" : "hidden"} group-hover:block`}>
+                 <div className="glass-panel rounded-2xl shadow-xl py-2">
+-                  <button type="button" onClick={() => { setLinksOpen(false); setDocModal({ title: "Curriculum Vitae", link: "/Fatima-Azeemi-CV.pdf" }); }} className="flex w-full items-center gap-2.5 px-4 py-2 text-xs hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
++                  <button type="button" onClick={() => { setLinksOpen(false); setCvOpen(true); }} className="flex w-full items-center gap-2.5 px-4 py-2 text-xs hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
+                     <FileText className="w-4 h-4" /> Curriculum Vitae
+                   </button>
+                   <a href="https://github.com/0xfatima" target="_blank" rel="noopener" className="flex items-center gap-2.5 px-4 py-2 text-xs hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
+@@ -467,9 +464,9 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
+                   <a href="https://medium.com" target="_blank" rel="noopener" className="flex items-center gap-2.5 px-4 py-2 text-xs hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
+                     <PenTool className="w-4 h-4" /> Medium Articles
+                   </a>
+-                  <button type="button" onClick={() => { setLinksOpen(false); setGalleryOpen(true); }} className="flex w-full items-center gap-2.5 px-4 py-2 text-xs hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
++                  <Link href="/gallery" onClick={() => setLinksOpen(false)} className="flex w-full items-center gap-2.5 px-4 py-2 text-xs hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
+                     <Camera className="w-4 h-4" /> Photo Gallery
+-                  </button>
++                  </Link>
+                   <div className="my-1 border-t border-cream-border dark:border-dark-border" />
+                   {isAdmin ? (
+                     <>
+@@ -543,9 +540,9 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
+           </div>
+           {data.skills.length ? (
+             <div className="space-y-4 py-6 border-y border-cream-border dark:border-dark-border glass-panel">
+-              <SkillTrack id="skills-row-1" skills={row1} />
+-              <SkillTrack id="skills-row-2" reverse iconsOnly skills={row2} />
+-              <SkillTrack id="skills-row-3" skills={row3} />
++              {skillRows.map((item, index) => (
++                <SkillTrack key={item.row} label={item.label} reverse={index % 2 === 1} skills={item.skills} />
++              ))}
+             </div>
+           ) : (
+             <ComingSoon />
+@@ -556,7 +553,7 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
+           <div className="text-center mb-12 flex flex-col items-center">
+             <span className="text-xs font-mono uppercase tracking-widest text-cream-muted dark:text-dark-muted">Featured Work</span>
+             <div className="flex items-center gap-3 mt-2">
+-              <h2 className="section-heading font-heading text-3xl sm:text-4xl font-bold">Selected Projects</h2>
++              <h2 className="section-heading font-heading text-3xl sm:text-4xl font-bold">Projects</h2>
+               {isAdmin && (
+                 <button type="button" onClick={() => adminManage("projects")} className={adminPencil} aria-label="Add project">
+                   <PlusCircle className="w-4 h-4" />
+@@ -817,171 +814,7 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
+         </div>
+       </footer>
+ 
+-      {docModal && (
+-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+-          <div className="glass-panel w-full max-w-lg rounded-3xl p-6 space-y-4 relative">
+-            <button type="button" onClick={() => setDocModal(null)} className="absolute top-4 right-4 p-2 rounded-full border border-cream-border dark:border-dark-border">
+-              <X className="w-4 h-4" />
+-            </button>
+-            <h3 className="font-heading text-xl font-bold">{docModal.title}</h3>
+-            <div className="text-xs leading-relaxed text-cream-muted dark:text-dark-muted">
+-              <p className="mb-4">Access official document file for {docModal.title}.</p>
+-              <a href={docModal.link} target="_blank" rel="noopener" className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-stone-900 text-stone-100 dark:bg-stone-100 dark:text-stone-900 font-medium">
+-                Download Document <Download className="w-4 h-4" />
+-              </a>
+-            </div>
+-          </div>
+-        </div>
+-      )}
+-
+-      {galleryOpen && (
+-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
+-          <div className="glass-panel w-full max-w-4xl rounded-3xl p-6 space-y-4 relative max-h-[90vh] overflow-y-auto">
+-            <button
+-              type="button"
+-              onClick={() => {
+-                setGalleryOpen(false);
+-                setActiveAlbumId(null);
+-              }}
+-              className="absolute top-4 right-4 p-2 rounded-full border border-cream-border dark:border-dark-border z-10"
+-            >
+-              <X className="w-4 h-4" />
+-            </button>
+-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pr-8">
+-              <div>
+-                {activeAlbum ? (
+-                  <button
+-                    type="button"
+-                    onClick={() => setActiveAlbumId(null)}
+-                    className="inline-flex items-center gap-1.5 text-xs text-cream-muted dark:text-dark-muted hover:text-cream-text dark:hover:text-dark-text mb-2"
+-                  >
+-                    <ArrowLeft className="w-3.5 h-3.5" /> All albums
+-                  </button>
+-                ) : null}
+-                <h3 className="font-heading text-2xl font-bold">
+-                  {activeAlbum ? activeAlbum.title : "Photography Gallery"}
+-                </h3>
+-                <p className="text-xs text-cream-muted dark:text-dark-muted mt-1">
+-                  {activeAlbum
+-                    ? activeAlbum.description || "Photos in this album."
+-                    : isAdmin
+-                      ? "Organize photos into albums, then upload into each one."
+-                      : "Browse albums from the archive."}
+-                </p>
+-              </div>
+-              {isAdmin && (
+-                <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+-                  {!activeAlbum && albums.length ? (
+-                    <select
+-                      value={galleryAlbumId}
+-                      onChange={(event) => setGalleryAlbumId(event.target.value)}
+-                      className="px-3 py-1.5 rounded-full border border-cream-border dark:border-dark-border bg-transparent text-xs focus:outline-none"
+-                    >
+-                      <option value="">Uncategorized</option>
+-                      {albums.map((album) => (
+-                        <option key={album.id} value={album.id}>{album.title}</option>
+-                      ))}
+-                    </select>
+-                  ) : null}
+-                  <input
+-                    value={galleryCaption}
+-                    onChange={(event) => setGalleryCaption(event.target.value)}
+-                    type="text"
+-                    placeholder="Caption (optional)"
+-                    className="px-3 py-1.5 rounded-full border border-cream-border dark:border-dark-border bg-transparent text-xs focus:outline-none"
+-                  />
+-                  <label className="cursor-pointer inline-flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-full border border-cream-border dark:border-dark-border text-xs font-medium hover:bg-stone-500/20 transition-colors">
+-                    <Upload className="w-3.5 h-3.5" /> Upload Photo
+-                    <input type="file" accept="image/*" className="hidden" onChange={onGalleryFile} />
+-                  </label>
+-                  <button type="button" onClick={() => adminManage("gallery")} className="px-3.5 py-1.5 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/40 text-xs font-medium">
+-                    Manage
+-                  </button>
+-                </div>
+-              )}
+-            </div>
+-            {galleryError && <p className="text-xs font-mono text-rose-400">{galleryError}</p>}
+-
+-            {!activeAlbum ? (
+-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+-                {albums.map((album) => {
+-                  const count = galleryPhotos.filter((photo) => photo.albumId === album.id).length;
+-                  const cover =
+-                    album.cover ||
+-                    galleryPhotos.find((photo) => photo.albumId === album.id)?.url ||
+-                    "";
+-                  return (
+-                    <button
+-                      key={album.id}
+-                      type="button"
+-                      onClick={() => {
+-                        setActiveAlbumId(album.id);
+-                        setGalleryAlbumId(album.id);
+-                      }}
+-                      className="text-left relative group rounded-2xl overflow-hidden aspect-[4/3] bg-stone-800 card-glow border border-cream-border/30 dark:border-dark-border/30"
+-                    >
+-                      {cover ? (
+-                        <img src={cover} alt={DEFAULT_ALT} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+-                      ) : (
+-                        <div className="absolute inset-0 flex items-center justify-center text-stone-500">
+-                          <FolderOpen className="w-8 h-8" />
+-                        </div>
+-                      )}
+-                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+-                      <div className="absolute bottom-0 inset-x-0 p-4 text-white">
+-                        <h4 className="font-heading font-bold text-lg">{album.title}</h4>
+-                        <p className="text-[11px] text-white/75 mt-0.5">{count} photo{count === 1 ? "" : "s"}</p>
+-                      </div>
+-                    </button>
+-                  );
+-                })}
+-                {uncategorizedPhotos.length ? (
+-                  <button
+-                    type="button"
+-                    onClick={() => {
+-                      setActiveAlbumId("__uncategorized__");
+-                      setGalleryAlbumId("");
+-                    }}
+-                    className="text-left relative group rounded-2xl overflow-hidden aspect-[4/3] bg-stone-800 card-glow border border-cream-border/30 dark:border-dark-border/30"
+-                  >
+-                    <img src={uncategorizedPhotos[0].url} alt={DEFAULT_ALT} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+-                    <div className="absolute bottom-0 inset-x-0 p-4 text-white">
+-                      <h4 className="font-heading font-bold text-lg">Uncategorized</h4>
+-                      <p className="text-[11px] text-white/75 mt-0.5">{uncategorizedPhotos.length} photo{uncategorizedPhotos.length === 1 ? "" : "s"}</p>
+-                    </div>
+-                  </button>
+-                ) : null}
+-                {!albums.length && !galleryPhotos.length && <ComingSoon />}
+-              </div>
+-            ) : (
+-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+-                {photosInView.map((photo) => (
+-                  <div key={photo.id} className="relative group rounded-2xl overflow-hidden aspect-square bg-stone-800 card-glow">
+-                    <img src={photo.url} alt={DEFAULT_ALT} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+-                    {photo.caption && (
+-                      <div className="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-black/80 to-transparent text-white text-xs font-medium">
+-                        {photo.caption}
+-                      </div>
+-                    )}
+-                    {isAdmin && (
+-                      <button
+-                        type="button"
+-                        onClick={() => deleteGalleryPhoto(photo.id)}
+-                        className="absolute top-3 right-3 p-1.5 rounded-full bg-black/50 hover:bg-rose-500/80 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+-                        aria-label="Delete photo"
+-                      >
+-                        <Trash2 className="w-3.5 h-3.5" />
+-                      </button>
+-                    )}
+-                  </div>
+-                ))}
+-                {!photosInView.length && <ComingSoon />}
+-              </div>
+-            )}
+-          </div>
+-        </div>
+-      )}
++      <CvViewer open={cvOpen} onClose={() => setCvOpen(false)} />
+ 
+       {projectGallery && (
+         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+diff --git a/lib/records.js b/lib/records.js
+index 1965634..997c4f6 100644
+--- a/lib/records.js
++++ b/lib/records.js
+@@ -60,9 +60,9 @@ async function buildProject(input, id) {
+ 
+ async function buildSkill(input, id) {
+   const row = Number(input.row);
+-  if (![1, 2, 3].includes(row)) throw new HttpError(400, "Target row must be 1, 2, or 3");
+-  const icon = row === 2 ? await httpUrl(input.icon, "Skill icon") : "";
+-  if (row === 2 && !icon) throw new HttpError(400, "Middle row skills need an icon");
++  if (![1, 2, 3].includes(row)) throw new HttpError(400, "Row must be AI (1), Development (2) or General (3)");
++  // Every row can show an optional icon next to the skill name.
++  const icon = await httpUrl(input.icon, "Skill icon");
+   return {
+     id,
+     name: text(input.name, 60, true, "Skill name"),
+diff --git a/lib/seed.js b/lib/seed.js
+index 3950d9b..ea1a7d6 100644
+--- a/lib/seed.js
++++ b/lib/seed.js
+@@ -97,48 +97,27 @@ export function seedData() {
+       },
+     ],
+     skills: [
+-      { name: "Python", row: 1 },
+-      { name: "JavaScript", row: 1 },
+-      { name: "React.js", row: 1 },
+-      { name: "Next.js", row: 1 },
+-      { name: "FastAPI", row: 1 },
+-      { name: "Tailwind CSS", row: 1 },
+-      {
+-        name: "LangChain",
+-        row: 2,
+-        icon: "https://cdn.simpleicons.org/langchain/1C3C3C",
+-      },
+-      {
+-        name: "OpenAI",
+-        row: 2,
+-        icon: "https://cdn.simpleicons.org/openai/412991",
+-      },
+-      {
+-        name: "ChromaDB",
+-        row: 2,
+-        icon: "https://cdn.simpleicons.org/databricks/FF3621",
+-      },
+-      {
+-        name: "GCP",
+-        row: 2,
+-        icon: "https://cdn.simpleicons.org/googlecloud/4285F4",
+-      },
+-      {
+-        name: "Kubernetes",
+-        row: 2,
+-        icon: "https://cdn.simpleicons.org/kubernetes/326CE5",
+-      },
+-      {
+-        name: "MongoDB",
+-        row: 2,
+-        icon: "https://cdn.simpleicons.org/mongodb/47A248",
+-      },
+-      { name: "LLMs & RAG", row: 3 },
+-      { name: "NLP", row: 3 },
+-      { name: "Computer Vision", row: 3 },
+-      { name: "Prompt Engineering", row: 3 },
+-      { name: "Node.js", row: 3 },
+-      { name: "Git & GitLab", row: 3 },
++      // Row 1: AI skills
++      { name: "LLMs & RAG", row: 1 },
++      { name: "NLP", row: 1 },
++      { name: "Computer Vision", row: 1 },
++      { name: "Prompt Engineering", row: 1 },
++      { name: "LangChain", row: 1, icon: "https://cdn.simpleicons.org/langchain/1C3C3C" },
++      { name: "OpenAI", row: 1, icon: "https://cdn.simpleicons.org/openai/412991" },
++      { name: "ChromaDB", row: 1 },
++      // Row 2: development
++      { name: "Python", row: 2, icon: "https://cdn.simpleicons.org/python/3776AB" },
++      { name: "JavaScript", row: 2, icon: "https://cdn.simpleicons.org/javascript/F7DF1E" },
++      { name: "React.js", row: 2, icon: "https://cdn.simpleicons.org/react/61DAFB" },
++      { name: "Next.js", row: 2, icon: "https://cdn.simpleicons.org/nextdotjs/000000" },
++      { name: "FastAPI", row: 2, icon: "https://cdn.simpleicons.org/fastapi/009688" },
++      { name: "Node.js", row: 2, icon: "https://cdn.simpleicons.org/nodedotjs/5FA04E" },
++      { name: "Tailwind CSS", row: 2, icon: "https://cdn.simpleicons.org/tailwindcss/06B6D4" },
++      { name: "MongoDB", row: 2, icon: "https://cdn.simpleicons.org/mongodb/47A248" },
++      // Row 3: general
++      { name: "Git & GitLab", row: 3, icon: "https://cdn.simpleicons.org/gitlab/FC6D26" },
++      { name: "GCP", row: 3, icon: "https://cdn.simpleicons.org/googlecloud/4285F4" },
++      { name: "Kubernetes", row: 3, icon: "https://cdn.simpleicons.org/kubernetes/326CE5" },
+     ].map((skill) => ({ id: randomUUID(), icon: "", ...skill })),
+     experience: [
+       {
+diff --git a/lib/skills.js b/lib/skills.js
+new file mode 100644
+index 0000000..28c7168
+--- /dev/null
++++ b/lib/skills.js
+@@ -0,0 +1,11 @@
++// The three marquee rows in the Technical Toolkit. `row` is what is stored on
++// each skill record, so existing data keeps working.
++export const SKILL_ROWS = [
++  { row: 1, label: "AI Skills", short: "AI" },
++  { row: 2, label: "Development", short: "Dev" },
++  { row: 3, label: "General", short: "General" },
++];
++
++export function skillRowLabel(row) {
++  return SKILL_ROWS.find((item) => item.row === Number(row))?.label || "AI Skills";
++}
+diff --git a/next.config.mjs b/next.config.mjs
+index 0951809..8b4c9cf 100644
+--- a/next.config.mjs
++++ b/next.config.mjs
+@@ -7,6 +7,10 @@ const root = path.dirname(fileURLToPath(import.meta.url));
+ const nextConfig = {
+   poweredByHeader: false,
+   outputFileTracingRoot: root,
++  // The CV is read from disk by /api/cv, so ship it with that function.
++  outputFileTracingIncludes: {
++    "/api/cv": ["./private/**/*"],
++  },
+ };
+ 
+ export default nextConfig;
+diff --git a/public/Fatima-Azeemi-CV.pdf b/private/Fatima-Azeemi-CV.pdf
+similarity index 100%
+rename from public/Fatima-Azeemi-CV.pdf
+rename to private/Fatima-Azeemi-CV.pdf
