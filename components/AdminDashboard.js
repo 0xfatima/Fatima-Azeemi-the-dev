@@ -8,14 +8,14 @@ import { SKILL_ROWS } from "@/lib/skills";
 // Shared styles. Light values first, dark values behind `dark:` so the console
 // follows the same cream / charcoal theme as the rest of the site.
 const inputClass =
-  "w-full px-3 py-2 rounded-xl bg-white dark:bg-stone-900 border border-cream-border dark:border-stone-700 text-xs text-cream-text dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20 transition-colors";
+  "w-full px-3 py-2 rounded-xl bg-cream-bg dark:bg-stone-900 border border-cream-border dark:border-stone-700 text-xs text-cream-text dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20 transition-colors";
 const labelClass = "text-[10px] font-mono uppercase tracking-wide text-cream-muted dark:text-stone-400 block mb-1";
 const formCard =
-  "p-5 rounded-2xl space-y-4 border border-cream-border dark:border-stone-700/50 bg-cream-surface/70 dark:bg-stone-900/40";
+  "p-5 rounded-2xl space-y-4 border border-cream-border dark:border-stone-700/50 bg-white dark:bg-stone-900/40";
 const formHeading =
   "font-heading font-bold text-sm text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-2";
 const rowClass =
-  "flex items-center justify-between gap-3 p-3 rounded-xl bg-white/80 dark:bg-stone-900 border border-cream-border dark:border-stone-800 text-xs";
+  "flex items-center justify-between gap-3 p-3 rounded-xl bg-white dark:bg-stone-900 border border-cream-border dark:border-stone-800 text-xs";
 const mutedText = "text-cream-muted dark:text-stone-400";
 const editBtn =
   "px-2.5 py-1 rounded-lg bg-cream-card hover:bg-cream-border text-cream-text dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-200 transition-colors";
@@ -197,7 +197,7 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
   }
 
   return (
-    <div id="admin-dashboard-modal" className={`fixed inset-0 z-[70] bg-stone-900/40 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-4 ${open ? "" : "hidden"}`}>
+    <div id="admin-dashboard-modal" className={`fixed inset-0 z-[70] bg-cream-bg/70 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-4 ${open ? "" : "hidden"}`}>
       <div className="w-full max-w-5xl rounded-3xl p-6 space-y-6 relative max-h-[92vh] overflow-y-auto bg-cream-bg dark:bg-dark-surface text-cream-text dark:text-dark-text border border-cream-border dark:border-dark-border shadow-2xl">
         <button type="button" onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full border border-cream-border dark:border-dark-border hover:bg-cream-card dark:hover:bg-dark-card transition-colors z-10" aria-label="Close console">
           <X className="w-4 h-4" />
@@ -206,7 +206,7 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pr-10 border-b border-cream-border dark:border-dark-border pb-4">
           <div>
             <h3 className="font-heading text-2xl font-bold flex items-center gap-2">
-              <Database className="w-6 h-6 text-amber-500" /> Backend Database Console
+              <Database className="w-6 h-6 text-amber-600 dark:text-amber-500" /> Backend Database Console
             </h3>
             <p className="text-xs text-cream-muted dark:text-dark-muted">
               Manage projects, skills, institution images, certificates, gallery albums, and publications.
@@ -234,7 +234,7 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
               key={id}
               type="button"
               onClick={() => setActiveTab(id)}
-              className={`admin-tab-btn px-4 py-2 rounded-xl whitespace-nowrap transition-colors border ${activeTab === id ? "bg-amber-500/15 text-amber-700 border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30" : "border-transparent bg-cream-surface text-cream-muted hover:bg-cream-card hover:text-cream-text dark:bg-stone-500/10 dark:text-stone-400 dark:hover:bg-stone-500/20 dark:hover:text-stone-200"}`}
+              className={`admin-tab-btn px-4 py-2 rounded-xl whitespace-nowrap transition-colors border ${activeTab === id ? "bg-amber-500/15 text-amber-700 border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30" : "border-cream-border bg-white text-cream-muted hover:bg-cream-surface hover:text-cream-text dark:border-transparent dark:bg-stone-500/10 dark:text-stone-400 dark:hover:bg-stone-500/20 dark:hover:text-stone-200"}`}
             >
               {label}
             </button>
@@ -361,7 +361,7 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                               onChange={(event) =>
                                 persist("skills", item.id, { name: item.name, row: Number(event.target.value), icon: item.icon || "" }, () => {})
                               }
-                              className="px-1.5 py-1 rounded-lg bg-cream-surface dark:bg-stone-800 border border-cream-border dark:border-stone-700 text-[10px] focus:outline-none"
+                              className="px-1.5 py-1 rounded-lg bg-white dark:bg-stone-800 border border-cream-border dark:border-stone-700 text-[10px] focus:outline-none"
                               aria-label={`Move ${item.name} to another row`}
                             >
                               {SKILL_ROWS.map((option) => (

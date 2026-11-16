@@ -113,7 +113,7 @@ export default function CvViewer({ open, onClose, src = "/api/cv", title = "Curr
 
   return (
     <div
-      className="cv-viewer fixed inset-0 z-[60] bg-stone-900/50 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6"
+      className="cv-viewer fixed inset-0 z-[60] bg-cream-bg/70 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6"
       onContextMenu={block}
       onDragStart={block}
       role="dialog"

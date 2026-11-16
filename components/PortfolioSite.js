@@ -58,7 +58,7 @@ const emptyData = {
   gallery: [],
   publications: [],
 };
-const adminPencil = "text-xs p-1.5 rounded-lg bg-amber-500/20 text-amber-500 border border-amber-500/40 hover:bg-amber-500/30";
+const adminPencil = "text-xs p-1.5 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-500 border border-amber-500/40 hover:bg-amber-500/25";
 const educationShift = ["ml-0 md:ml-24", "ml-0 md:ml-12", "ml-0"];
 
 function createShapes(count = 26) {
@@ -470,7 +470,7 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
                   <div className="my-1 border-t border-cream-border dark:border-dark-border" />
                   {isAdmin ? (
                     <>
-                      <button type="button" onClick={() => { setLinksOpen(false); setDashOpen(true); }} className="flex w-full items-center gap-2.5 px-4 py-2 text-xs text-amber-500 font-semibold hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
+                      <button type="button" onClick={() => { setLinksOpen(false); setDashOpen(true); }} className="flex w-full items-center gap-2.5 px-4 py-2 text-xs text-amber-700 dark:text-amber-500 font-semibold hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
                         <Shield className="w-4 h-4" /> Open Admin Console
                       </button>
                       <button type="button" onClick={() => { setLinksOpen(false); logout(); }} className="flex w-full items-center gap-2.5 px-4 py-2 text-xs text-stone-400 font-semibold hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
@@ -478,7 +478,7 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
                       </button>
                     </>
                   ) : (
-                    <button type="button" onClick={() => { setLinksOpen(false); setLoginStatus(""); setLoginError(""); setAdminAuthOpen(true); }} className="flex w-full items-center gap-2.5 px-4 py-2 text-xs text-amber-500 font-semibold hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
+                    <button type="button" onClick={() => { setLinksOpen(false); setLoginStatus(""); setLoginError(""); setAdminAuthOpen(true); }} className="flex w-full items-center gap-2.5 px-4 py-2 text-xs text-amber-700 dark:text-amber-500 font-semibold hover:bg-cream-card dark:hover:bg-dark-card transition-colors">
                       <Shield className="w-4 h-4" /> Admin Login
                     </button>
                   )}
@@ -817,9 +817,9 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
       <CvViewer open={cvOpen} onClose={() => setCvOpen(false)} />
 
       {projectGallery && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-panel w-full max-w-3xl rounded-3xl p-6 space-y-4 relative">
-            <button type="button" onClick={() => setProjectGallery(null)} className="absolute top-4 right-4 p-2 rounded-full border border-cream-border dark:border-dark-border z-10">
+        <div className="fixed inset-0 z-50 bg-cream-bg/70 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-cream-bg dark:bg-dark-surface text-cream-text dark:text-dark-text border border-cream-border dark:border-dark-border shadow-2xl w-full max-w-3xl rounded-3xl p-6 space-y-4 relative">
+            <button type="button" onClick={() => setProjectGallery(null)} className="absolute top-4 right-4 p-2 rounded-full border border-cream-border dark:border-dark-border hover:bg-cream-card dark:hover:bg-dark-card transition-colors z-10">
               <X className="w-4 h-4" />
             </button>
             <h3 className="font-heading text-xl font-bold mb-4">{projectGallery.title} — Media Showcase</h3>
@@ -835,29 +835,29 @@ export default function PortfolioSite({ initialData, initialAdmin }) {
       )}
 
       {adminAuthOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-panel w-full max-w-sm rounded-3xl p-6 space-y-4 relative">
-            <button type="button" onClick={() => setAdminAuthOpen(false)} className="absolute top-4 right-4 p-2 rounded-full border border-cream-border dark:border-dark-border">
+        <div className="fixed inset-0 z-50 bg-cream-bg/70 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-cream-bg dark:bg-dark-surface text-cream-text dark:text-dark-text border border-cream-border dark:border-dark-border shadow-2xl w-full max-w-sm rounded-3xl p-6 space-y-4 relative">
+            <button type="button" onClick={() => setAdminAuthOpen(false)} className="absolute top-4 right-4 p-2 rounded-full border border-cream-border dark:border-dark-border hover:bg-cream-card dark:hover:bg-dark-card transition-colors" aria-label="Close">
               <X className="w-4 h-4" />
             </button>
-            <h3 className="font-heading text-xl font-bold flex items-center gap-2 text-amber-500">
+            <h3 className="font-heading text-xl font-bold flex items-center gap-2 text-amber-700 dark:text-amber-500">
               <ShieldCheck className="w-5 h-5" /> Admin Management Login
             </h3>
             <p className="text-xs text-cream-muted dark:text-dark-muted">Sign in to unlock backend database controls and real-time content editing.</p>
             {loginStatus === "ok" && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs font-mono">
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-500 text-xs font-mono">
                 Authentication successful. Unlocking admin dashboard...
               </div>
             )}
             {loginStatus === "error" && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-mono">
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-mono">
                 {loginError}
               </div>
             )}
             <form onSubmit={login} className="space-y-3">
               <div>
-                <label className="text-[10px] uppercase font-mono text-cream-muted dark:text-dark-muted block mb-1">Passkey / Key Code</label>
-                <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" placeholder="Enter keycode (e.g. admin123)" className="w-full px-4 py-2.5 rounded-xl border border-cream-border dark:border-dark-border bg-stone-500/10 text-xs focus:outline-none" required />
+                <label className="text-[10px] uppercase tracking-wide font-mono text-cream-muted dark:text-dark-muted block mb-1">Passkey</label>
+                <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" placeholder="Enter your admin passkey" className="w-full px-4 py-2.5 rounded-xl border border-cream-border dark:border-stone-700 bg-white dark:bg-stone-900 text-xs text-cream-text dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 focus:outline-none focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20" required />
               </div>
               <button type="submit" className="w-full py-2.5 rounded-xl bg-amber-500 text-stone-950 font-bold text-xs hover:bg-amber-400 transition-colors">
                 Authenticate Session

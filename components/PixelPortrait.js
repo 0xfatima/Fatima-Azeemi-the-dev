@@ -167,6 +167,47 @@ function backgroundMask(data, cols, rows, levels, rect) {
   return mask;
 }
 
+/**
+ * Clean up speckles. Bright highlights (hair edges, catchlights) turn into
+ * lone cream cells, which are nearly the page colour once blended, so they
+ * read as holes. A cream cell with at most two cream neighbours, or any cell
+ * with no neighbour of its own colour, takes its neighbours' majority colour.
+ */
+function despeckle(colors, cols, rows) {
+  const out = colors.slice();
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      const idx = y * cols + x;
+      const own = colors[idx];
+      const counts = new Map();
+      let same = 0;
+      for (let dy = -1; dy <= 1; dy += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) {
+          if (!dx && !dy) continue;
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+          const c = colors[ny * cols + nx];
+          if (c === own) same += 1;
+          else counts.set(c, (counts.get(c) || 0) + 1);
+        }
+      }
+      const isolated = own === PALETTE.cream ? same <= 2 : same === 0;
+      if (!isolated || !counts.size) continue;
+      let best = own;
+      let bestCount = 0;
+      counts.forEach((count, c) => {
+        if (c !== PALETTE.cream && count > bestCount) {
+          best = c;
+          bestCount = count;
+        }
+      });
+      out[idx] = best;
+    }
+  }
+  return out;
+}
+
 function finalCols(width) {
   // Around 14px per pixel on desktop, a little finer on phones.
   const cell = width < 640 ? 10 : 14;
@@ -192,20 +233,26 @@ function drawPoster(canvas, layout, levels, cols) {
   const ch = H / rows;
   ctx.clearRect(0, 0, W, H);
 
+  let colors = new Array(cols * rows);
   for (let y = 0; y < rows; y += 1) {
     for (let x = 0; x < cols; x += 1) {
       const idx = y * cols + x;
       const i = idx * 4;
       const xRatio = (x + 0.5) / cols;
-      let color;
       if (bgMask[idx]) {
-        color = backdropColor(xRatio);
+        colors[idx] = backdropColor(xRatio);
       } else {
         const raw = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255;
         const lum = Math.min(1, Math.max(0, (raw - levels.lo) / levels.range));
-        color = pickColor(lum, xRatio);
+        colors[idx] = pickColor(lum, xRatio);
       }
-      ctx.fillStyle = rgb(color);
+    }
+  }
+  colors = despeckle(colors, cols, rows);
+
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      ctx.fillStyle = rgb(colors[y * cols + x]);
       ctx.fillRect(Math.floor(x * cw), Math.floor(y * ch), Math.ceil(cw) + 1, Math.ceil(ch) + 1);
     }
   }
