@@ -28,6 +28,9 @@ export async function POST(req, context) {
     const { collection } = await context.params;
     assertCollection(collection);
     const record = await buildRecord(collection, await req.json());
+    // Once a list has been ordered by hand, new items go to the top of it.
+    const orders = (await getDb())[collection].map((item) => item.order).filter(Number.isFinite);
+    if (orders.length) record.order = Math.min(...orders) - 1;
     await insertRecord(collection, record);
     return NextResponse.json(record, { status: 201 });
   } catch (err) {

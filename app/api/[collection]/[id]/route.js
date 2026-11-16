@@ -32,6 +32,9 @@ export async function PUT(req, context) {
   try {
     const { collection, id } = await readParams(context);
     const record = await buildRecord(collection, await req.json(), id);
+    // Editing a record keeps its place in the list.
+    const existing = (await getDb())[collection].find((item) => item.id === id);
+    if (Number.isFinite(existing?.order)) record.order = existing.order;
     return NextResponse.json(await updateRecord(collection, id, record));
   } catch (err) {
     return errorResponse(err);

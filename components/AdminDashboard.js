@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Database, LogOut, PlusCircle, RotateCcw, Trash2, X } from "lucide-react";
 import { api, compressImage, compressGalleryImage, compressLogoImage } from "@/lib/client";
 import { SKILL_ROWS } from "@/lib/skills";
+import SortableList from "@/components/SortableList";
 
 // Shared styles. Light values first, dark values behind `dark:` so the console
 // follows the same cream / charcoal theme as the rest of the site.
@@ -276,8 +277,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                 <button type="submit" disabled={saving} className={saveBtn}>Save Project Record</button>
               </div>
             </form>
-            <div className="space-y-2">
-              {data.projects.map((item) => (
+            <SortableList collection="projects" items={data.projects} onSaved={onSaved} onError={setError}>
+              {(item) => (
                 <div key={item.id} className={rowClass}>
                   <div className="flex items-center gap-3">
                     <img src={item.cover} alt="Fatima Azeemi AI Engineer" className="w-10 h-10 rounded-lg object-cover" />
@@ -291,8 +292,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                     <button type="button" onClick={() => remove("projects", item.id)} className={deleteBtn}>Delete</button>
                   </div>
                 </div>
-              ))}
-            </div>
+              )}
+            </SortableList>
           </div>
         )}
 
@@ -347,8 +348,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                     Row {row} · {label} <span className="opacity-70">({rowSkills.length})</span>
                   </h5>
                   {rowSkills.length ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {rowSkills.map((item) => (
+                    <SortableList collection="skills" items={rowSkills} onSaved={onSaved} onError={setError} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {(item) => (
                         <div key={item.id} className={`${rowClass} !p-2.5`}>
                           <div className="flex items-center gap-2 min-w-0">
                             {item.icon ? <img src={item.icon} alt="" className="w-8 h-8 rounded-lg object-contain bg-white dark:bg-stone-100 p-1 shrink-0" /> : null}
@@ -374,8 +375,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                             </button>
                           </div>
                         </div>
-                      ))}
-                    </div>
+                      )}
+                    </SortableList>
                   ) : (
                     <p className={`text-[11px] ${mutedText}`}>No skills in this row yet.</p>
                   )}
@@ -428,8 +429,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                 <button type="submit" disabled={saving} className={saveBtn}>Save Experience Stop</button>
               </div>
             </form>
-            <div className="space-y-2">
-              {data.experience.map((item) => (
+            <SortableList collection="experience" items={data.experience} onSaved={onSaved} onError={setError}>
+              {(item) => (
                 <div key={item.id} className={rowClass}>
                   <div className="flex items-center gap-3">
                     {item.logo ? <img src={item.logo} alt="Fatima Azeemi AI Engineer" className="w-10 h-10 rounded-lg object-cover" /> : null}
@@ -443,8 +444,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                     <button type="button" onClick={() => remove("experience", item.id)} className={deleteBtn}>Delete</button>
                   </div>
                 </div>
-              ))}
-            </div>
+              )}
+            </SortableList>
           </div>
         )}
 
@@ -491,8 +492,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                 <button type="submit" disabled={saving} className={saveBtn}>Save Education Step</button>
               </div>
             </form>
-            <div className="space-y-2">
-              {data.education.map((item) => (
+            <SortableList collection="education" items={data.education} onSaved={onSaved} onError={setError}>
+              {(item) => (
                 <div key={item.id} className={rowClass}>
                   <div className="flex items-center gap-3">
                     {item.logo ? <img src={item.logo} alt="Fatima Azeemi AI Engineer" className="w-10 h-10 rounded-lg object-cover" /> : null}
@@ -506,8 +507,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                     <button type="button" onClick={() => remove("education", item.id)} className={deleteBtn}>Delete</button>
                   </div>
                 </div>
-              ))}
-            </div>
+              )}
+            </SortableList>
           </div>
         )}
 
@@ -556,8 +557,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                 <button type="submit" disabled={saving} className={saveBtn}>Save Credential</button>
               </div>
             </form>
-            <div className="space-y-2">
-              {data.courses.map((item) => (
+            <SortableList collection="courses" items={data.courses} onSaved={onSaved} onError={setError}>
+              {(item) => (
                 <div key={item.id} className={rowClass}>
                   <div className="flex items-center gap-3">
                     {(item.issuerLogo || item.logo) ? <img src={item.issuerLogo || item.logo} alt="Fatima Azeemi AI Engineer" className="w-10 h-10 rounded-lg object-cover" /> : null}
@@ -585,8 +586,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                     <button type="button" onClick={() => remove("courses", item.id)} className={deleteBtn}>Delete</button>
                   </div>
                 </div>
-              ))}
-            </div>
+              )}
+            </SortableList>
           </div>
         )}
 
@@ -623,8 +624,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
               </div>
             </form>
 
-            <div className="space-y-2">
-              {(data.albums || []).map((item) => {
+            <SortableList collection="albums" items={data.albums || []} onSaved={onSaved} onError={setError}>
+              {(item) => {
                 const count = (data.gallery || []).filter((photo) => photo.albumId === item.id).length;
                 return (
                   <div key={item.id} className={rowClass}>
@@ -641,8 +642,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                     </div>
                   </div>
                 );
-              })}
-            </div>
+              }}
+            </SortableList>
 
             <form
               onSubmit={(event) => {
@@ -754,8 +755,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                 <button type="submit" disabled={saving} className={saveBtn}>Save Publication</button>
               </div>
             </form>
-            <div className="space-y-2">
-              {(data.publications || []).map((item) => (
+            <SortableList collection="publications" items={data.publications || []} onSaved={onSaved} onError={setError}>
+              {(item) => (
                 <div key={item.id} className={rowClass}>
                   <div className="flex items-center gap-3 min-w-0">
                     {item.cover ? <img src={item.cover} alt="Fatima Azeemi AI Engineer" className="w-12 h-12 rounded-lg object-cover" /> : null}
@@ -786,8 +787,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
                     <button type="button" onClick={() => remove("publications", item.id)} className={deleteBtn}>Delete</button>
                   </div>
                 </div>
-              ))}
-            </div>
+              )}
+            </SortableList>
           </div>
         )}
       </div>

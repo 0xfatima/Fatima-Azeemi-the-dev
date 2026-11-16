@@ -1,0 +1,519 @@
+diff --git a/app/api/[collection]/[id]/route.js b/app/api/[collection]/[id]/route.js
+index fcbc92a..d6e6ac1 100644
+--- a/app/api/[collection]/[id]/route.js
++++ b/app/api/[collection]/[id]/route.js
+@@ -32,6 +32,9 @@ export async function PUT(req, context) {
+   try {
+     const { collection, id } = await readParams(context);
+     const record = await buildRecord(collection, await req.json(), id);
++    // Editing a record keeps its place in the list.
++    const existing = (await getDb())[collection].find((item) => item.id === id);
++    if (Number.isFinite(existing?.order)) record.order = existing.order;
+     return NextResponse.json(await updateRecord(collection, id, record));
+   } catch (err) {
+     return errorResponse(err);
+diff --git a/app/api/[collection]/route.js b/app/api/[collection]/route.js
+index a4becf0..a16f9aa 100644
+--- a/app/api/[collection]/route.js
++++ b/app/api/[collection]/route.js
+@@ -28,6 +28,9 @@ export async function POST(req, context) {
+     const { collection } = await context.params;
+     assertCollection(collection);
+     const record = await buildRecord(collection, await req.json());
++    // Once a list has been ordered by hand, new items go to the top of it.
++    const orders = (await getDb())[collection].map((item) => item.order).filter(Number.isFinite);
++    if (orders.length) record.order = Math.min(...orders) - 1;
+     await insertRecord(collection, record);
+     return NextResponse.json(record, { status: 201 });
+   } catch (err) {
+diff --git a/app/api/admin/reorder/route.js b/app/api/admin/reorder/route.js
+new file mode 100644
+index 0000000..8af52aa
+--- /dev/null
++++ b/app/api/admin/reorder/route.js
+@@ -0,0 +1,26 @@
++import { NextResponse } from "next/server";
++import { requireAdmin } from "@/lib/auth";
++import { assertCollection, reorderRecords } from "@/lib/db";
++import { errorResponse, HttpError } from "@/lib/errors";
++
++export const runtime = "nodejs";
++export const dynamic = "force-dynamic";
++
++export async function POST(req) {
++  const denied = requireAdmin(req);
++  if (denied) return denied;
++
++  try {
++    const body = await req.json().catch(() => ({}));
++    assertCollection(body.collection);
++    const ids = body.ids;
++    if (!Array.isArray(ids) || !ids.length || ids.length > 500 || !ids.every((id) => typeof id === "string" && id.length <= 80)) {
++      throw new HttpError(400, "ids must be a list of record ids");
++    }
++    if (new Set(ids).size !== ids.length) throw new HttpError(400, "ids must be unique");
++    await reorderRecords(body.collection, ids);
++    return NextResponse.json({ ok: true });
++  } catch (err) {
++    return errorResponse(err);
++  }
++}
+diff --git a/components/AdminDashboard.js b/components/AdminDashboard.js
+index ecf6719..5ab273b 100644
+--- a/components/AdminDashboard.js
++++ b/components/AdminDashboard.js
+@@ -4,6 +4,7 @@ import { useState } from "react";
+ import { Database, LogOut, PlusCircle, RotateCcw, Trash2, X } from "lucide-react";
+ import { api, compressImage, compressGalleryImage, compressLogoImage } from "@/lib/client";
+ import { SKILL_ROWS } from "@/lib/skills";
++import SortableList from "@/components/SortableList";
+ 
+ // Shared styles. Light values first, dark values behind `dark:` so the console
+ // follows the same cream / charcoal theme as the rest of the site.
+@@ -276,8 +277,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                 <button type="submit" disabled={saving} className={saveBtn}>Save Project Record</button>
+               </div>
+             </form>
+-            <div className="space-y-2">
+-              {data.projects.map((item) => (
++            <SortableList collection="projects" items={data.projects} onSaved={onSaved} onError={setError}>
++              {(item) => (
+                 <div key={item.id} className={rowClass}>
+                   <div className="flex items-center gap-3">
+                     <img src={item.cover} alt="Fatima Azeemi AI Engineer" className="w-10 h-10 rounded-lg object-cover" />
+@@ -291,8 +292,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                     <button type="button" onClick={() => remove("projects", item.id)} className={deleteBtn}>Delete</button>
+                   </div>
+                 </div>
+-              ))}
+-            </div>
++              )}
++            </SortableList>
+           </div>
+         )}
+ 
+@@ -347,8 +348,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                     Row {row} · {label} <span className="opacity-70">({rowSkills.length})</span>
+                   </h5>
+                   {rowSkills.length ? (
+-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+-                      {rowSkills.map((item) => (
++                    <SortableList collection="skills" items={rowSkills} onSaved={onSaved} onError={setError} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
++                      {(item) => (
+                         <div key={item.id} className={`${rowClass} !p-2.5`}>
+                           <div className="flex items-center gap-2 min-w-0">
+                             {item.icon ? <img src={item.icon} alt="" className="w-8 h-8 rounded-lg object-contain bg-white dark:bg-stone-100 p-1 shrink-0" /> : null}
+@@ -374,8 +375,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                             </button>
+                           </div>
+                         </div>
+-                      ))}
+-                    </div>
++                      )}
++                    </SortableList>
+                   ) : (
+                     <p className={`text-[11px] ${mutedText}`}>No skills in this row yet.</p>
+                   )}
+@@ -428,8 +429,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                 <button type="submit" disabled={saving} className={saveBtn}>Save Experience Stop</button>
+               </div>
+             </form>
+-            <div className="space-y-2">
+-              {data.experience.map((item) => (
++            <SortableList collection="experience" items={data.experience} onSaved={onSaved} onError={setError}>
++              {(item) => (
+                 <div key={item.id} className={rowClass}>
+                   <div className="flex items-center gap-3">
+                     {item.logo ? <img src={item.logo} alt="Fatima Azeemi AI Engineer" className="w-10 h-10 rounded-lg object-cover" /> : null}
+@@ -443,8 +444,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                     <button type="button" onClick={() => remove("experience", item.id)} className={deleteBtn}>Delete</button>
+                   </div>
+                 </div>
+-              ))}
+-            </div>
++              )}
++            </SortableList>
+           </div>
+         )}
+ 
+@@ -491,8 +492,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                 <button type="submit" disabled={saving} className={saveBtn}>Save Education Step</button>
+               </div>
+             </form>
+-            <div className="space-y-2">
+-              {data.education.map((item) => (
++            <SortableList collection="education" items={data.education} onSaved={onSaved} onError={setError}>
++              {(item) => (
+                 <div key={item.id} className={rowClass}>
+                   <div className="flex items-center gap-3">
+                     {item.logo ? <img src={item.logo} alt="Fatima Azeemi AI Engineer" className="w-10 h-10 rounded-lg object-cover" /> : null}
+@@ -506,8 +507,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                     <button type="button" onClick={() => remove("education", item.id)} className={deleteBtn}>Delete</button>
+                   </div>
+                 </div>
+-              ))}
+-            </div>
++              )}
++            </SortableList>
+           </div>
+         )}
+ 
+@@ -556,8 +557,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                 <button type="submit" disabled={saving} className={saveBtn}>Save Credential</button>
+               </div>
+             </form>
+-            <div className="space-y-2">
+-              {data.courses.map((item) => (
++            <SortableList collection="courses" items={data.courses} onSaved={onSaved} onError={setError}>
++              {(item) => (
+                 <div key={item.id} className={rowClass}>
+                   <div className="flex items-center gap-3">
+                     {(item.issuerLogo || item.logo) ? <img src={item.issuerLogo || item.logo} alt="Fatima Azeemi AI Engineer" className="w-10 h-10 rounded-lg object-cover" /> : null}
+@@ -585,8 +586,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                     <button type="button" onClick={() => remove("courses", item.id)} className={deleteBtn}>Delete</button>
+                   </div>
+                 </div>
+-              ))}
+-            </div>
++              )}
++            </SortableList>
+           </div>
+         )}
+ 
+@@ -623,8 +624,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+               </div>
+             </form>
+ 
+-            <div className="space-y-2">
+-              {(data.albums || []).map((item) => {
++            <SortableList collection="albums" items={data.albums || []} onSaved={onSaved} onError={setError}>
++              {(item) => {
+                 const count = (data.gallery || []).filter((photo) => photo.albumId === item.id).length;
+                 return (
+                   <div key={item.id} className={rowClass}>
+@@ -641,8 +642,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                     </div>
+                   </div>
+                 );
+-              })}
+-            </div>
++              }}
++            </SortableList>
+ 
+             <form
+               onSubmit={(event) => {
+@@ -754,8 +755,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                 <button type="submit" disabled={saving} className={saveBtn}>Save Publication</button>
+               </div>
+             </form>
+-            <div className="space-y-2">
+-              {(data.publications || []).map((item) => (
++            <SortableList collection="publications" items={data.publications || []} onSaved={onSaved} onError={setError}>
++              {(item) => (
+                 <div key={item.id} className={rowClass}>
+                   <div className="flex items-center gap-3 min-w-0">
+                     {item.cover ? <img src={item.cover} alt="Fatima Azeemi AI Engineer" className="w-12 h-12 rounded-lg object-cover" /> : null}
+@@ -786,8 +787,8 @@ export default function AdminDashboard({ open, onClose, onLogout, data, onSaved,
+                     <button type="button" onClick={() => remove("publications", item.id)} className={deleteBtn}>Delete</button>
+                   </div>
+                 </div>
+-              ))}
+-            </div>
++              )}
++            </SortableList>
+           </div>
+         )}
+       </div>
+diff --git a/components/SortableList.js b/components/SortableList.js
+new file mode 100644
+index 0000000..5ec0e3b
+--- /dev/null
++++ b/components/SortableList.js
+@@ -0,0 +1,140 @@
++"use client";
++
++import { useState } from "react";
++import { ArrowDownWideNarrow, ChevronDown, ChevronUp, GripVertical } from "lucide-react";
++import { api } from "@/lib/client";
++import { DATE_FIELDS, sortByDate } from "@/lib/ordering";
++
++const handleBtn =
++  "p-0.5 rounded text-cream-muted hover:text-cream-text hover:bg-cream-card dark:text-stone-500 dark:hover:text-stone-200 dark:hover:bg-stone-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors";
++
++function move(list, from, to) {
++  const next = list.slice();
++  const [item] = next.splice(from, 1);
++  next.splice(to, 0, item);
++  return next;
++}
++
++/**
++ * Admin list with drag-and-drop ordering (grab the ⋮⋮ handle) plus ↑/↓
++ * buttons for touch screens and keyboards. The new order is saved right away
++ * and is the order visitors see. Dated collections also get "Sort by date".
++ */
++export default function SortableList({ collection, items, onSaved, onError, className = "space-y-2", label, children }) {
++  // While a new order is being saved, show it immediately (optimistic);
++  // otherwise always render the latest data from the server.
++  const [pending, setPending] = useState(null);
++  const [armedId, setArmedId] = useState(null);
++  const [dragId, setDragId] = useState(null);
++  const [overId, setOverId] = useState(null);
++  const [saving, setSaving] = useState(false);
++
++  const byId = new Map(items.map((item) => [item.id, item]));
++  const list = pending
++    ? [...pending.map((id) => byId.get(id)).filter(Boolean), ...items.filter((item) => !pending.includes(item.id))]
++    : items;
++
++  async function save(next) {
++    setPending(next.map((item) => item.id));
++    setSaving(true);
++    onError?.("");
++    try {
++      await api("/api/admin/reorder", {
++        method: "POST",
++        body: JSON.stringify({ collection, ids: next.map((item) => item.id) }),
++      });
++      await onSaved?.();
++    } catch (err) {
++      onError?.(err.message);
++    } finally {
++      setPending(null);
++      setSaving(false);
++    }
++  }
++
++  function drop(targetId) {
++    const from = list.findIndex((item) => item.id === dragId);
++    const to = list.findIndex((item) => item.id === targetId);
++    setDragId(null);
++    setOverId(null);
++    setArmedId(null);
++    if (from < 0 || to < 0 || from === to) return;
++    save(move(list, from, to));
++  }
++
++  if (!list.length) return null;
++  const dated = Boolean(DATE_FIELDS[collection]);
++
++  return (
++    <div className="space-y-2">
++      {list.length > 1 && (
++        <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-mono uppercase tracking-wide text-cream-muted dark:text-stone-500">
++          <span className="inline-flex items-center gap-1">
++            <GripVertical className="w-3 h-3" /> Drag to reorder{label ? ` · ${label}` : ""}
++            {saving ? <span className="normal-case text-amber-700 dark:text-amber-400"> · saving…</span> : null}
++          </span>
++          {dated && (
++            <button
++              type="button"
++              disabled={saving}
++              onClick={() => save(sortByDate(list, collection))}
++              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-cream-border dark:border-stone-700 normal-case tracking-normal text-[11px] font-sans font-medium text-cream-text dark:text-stone-200 hover:bg-cream-card dark:hover:bg-stone-800 disabled:opacity-60 transition-colors"
++            >
++              <ArrowDownWideNarrow className="w-3.5 h-3.5" /> Sort by date (newest first)
++            </button>
++          )}
++        </div>
++      )}
++      <div className={className}>
++        {list.map((item, index) => (
++          <div
++            key={item.id}
++            draggable={armedId === item.id}
++            onDragStart={(event) => {
++              setDragId(item.id);
++              event.dataTransfer.effectAllowed = "move";
++              event.dataTransfer.setData("text/plain", item.id);
++            }}
++            onDragOver={(event) => {
++              if (!dragId) return;
++              event.preventDefault();
++              event.dataTransfer.dropEffect = "move";
++              if (overId !== item.id) setOverId(item.id);
++            }}
++            onDrop={(event) => {
++              event.preventDefault();
++              drop(item.id);
++            }}
++            onDragEnd={() => {
++              setDragId(null);
++              setOverId(null);
++              setArmedId(null);
++            }}
++            className={`flex items-stretch gap-1.5 rounded-xl transition-all ${dragId === item.id ? "opacity-40" : ""} ${
++              overId === item.id && dragId !== item.id ? "ring-2 ring-amber-500/60 ring-offset-2 ring-offset-cream-bg dark:ring-offset-dark-surface" : ""
++            }`}
++          >
++            <div className="flex flex-col items-center justify-center gap-0.5 shrink-0">
++              <button type="button" className={handleBtn} disabled={saving || index === 0} onClick={() => save(move(list, index, index - 1))} aria-label="Move up">
++                <ChevronUp className="w-3.5 h-3.5" />
++              </button>
++              <span
++                className="cursor-grab active:cursor-grabbing p-0.5 text-cream-muted dark:text-stone-500 hover:text-amber-700 dark:hover:text-amber-400"
++                onMouseDown={() => setArmedId(item.id)}
++                onMouseUp={() => !dragId && setArmedId(null)}
++                title="Drag to reorder"
++                aria-hidden="true"
++              >
++                <GripVertical className="w-4 h-4" />
++              </span>
++              <button type="button" className={handleBtn} disabled={saving || index === list.length - 1} onClick={() => save(move(list, index, index + 1))} aria-label="Move down">
++                <ChevronDown className="w-3.5 h-3.5" />
++              </button>
++            </div>
++            <div className="flex-1 min-w-0">{children(item, index)}</div>
++          </div>
++        ))}
++      </div>
++    </div>
++  );
++}
+diff --git a/lib/db.js b/lib/db.js
+index 1374b5f..c2538b4 100644
+--- a/lib/db.js
++++ b/lib/db.js
+@@ -3,6 +3,7 @@ import path from "path";
+ import { seedData } from "./seed";
+ import { HttpError } from "./errors";
+ import { getSupabaseAdmin, isSupabaseConfigured } from "./supabase";
++import { applyOrder } from "./ordering";
+ 
+ export const COLLECTIONS = [
+   "projects",
+@@ -131,7 +132,18 @@ function withTimeout(promise, ms) {
+   ]).finally(() => clearTimeout(timer));
+ }
+ 
++/** Every collection in display order (manual order, else newest first). */
++function ordered(db) {
++  const out = { ...db };
++  for (const name of COLLECTIONS) out[name] = applyOrder(db[name], name);
++  return out;
++}
++
+ export async function getDb() {
++  return ordered(await getRawDb());
++}
++
++async function getRawDb() {
+   if (!isSupabaseConfigured()) return readJsonDb();
+   try {
+     const db = await withTimeout(readSupabaseDb(), 8000);
+@@ -216,6 +228,39 @@ export async function updateRecord(collection, id, record) {
+   return record;
+ }
+ 
++/** Save a display order: each id gets `order` = its position in `ids`. */
++export async function reorderRecords(collection, ids) {
++  assertCollection(collection);
++  const position = new Map(ids.map((id, index) => [id, index]));
++  if (isSupabaseConfigured()) {
++    const supabase = getSupabaseAdmin();
++    const { data: rows, error } = await supabase
++      .from("portfolio_records")
++      .select("id, data")
++      .eq("collection", collection)
++      .in("id", ids);
++    if (error) throw new HttpError(500, error.message);
++    const now = new Date().toISOString();
++    const results = await Promise.all(
++      (rows || []).map((row) =>
++        supabase
++          .from("portfolio_records")
++          .update({ data: { ...(row.data || {}), order: position.get(row.id) }, updated_at: now })
++          .eq("id", row.id)
++          .eq("collection", collection)
++      )
++    );
++    const failed = results.find((result) => result.error);
++    if (failed) throw new HttpError(500, failed.error.message);
++    return;
++  }
++  const db = readJsonDb();
++  db[collection] = db[collection].map((item) =>
++    position.has(item.id) ? { ...item, order: position.get(item.id) } : item
++  );
++  writeJsonDb(db);
++}
++
+ export async function deleteRecord(collection, id) {
+   assertCollection(collection);
+   if (isSupabaseConfigured()) {
+diff --git a/lib/ordering.js b/lib/ordering.js
+new file mode 100644
+index 0000000..1d8db15
+--- /dev/null
++++ b/lib/ordering.js
+@@ -0,0 +1,70 @@
++// Display order for portfolio lists. Each record may carry a numeric `order`
++// (set by drag-and-drop in the admin panel). Collections that have dates are
++// shown newest-first until they are reordered by hand.
++
++export const DATE_FIELDS = {
++  experience: "duration",
++  education: "dates",
++  publications: "year",
++};
++
++const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
++const SEASONS = { spring: 3, summer: 6, fall: 9, autumn: 9, winter: 12 };
++const PRESENT = /\b(present|current|now|ongoing|today)\b/i;
++
++/** "Oct 2025", "2023", "Summer 2024", "Present" → sortable number (or null). */
++function pointValue(text) {
++  if (PRESENT.test(text)) return Number.POSITIVE_INFINITY;
++  const year = text.match(/\b(19|20)\d{2}\b/);
++  if (!year) return null;
++  const lower = text.toLowerCase();
++  let month = 0;
++  const monthIndex = MONTHS.findIndex((name) => new RegExp(`\\b${name}`).test(lower));
++  if (monthIndex >= 0) month = monthIndex + 1;
++  else {
++    const season = Object.keys(SEASONS).find((name) => lower.includes(name));
++    if (season) month = SEASONS[season];
++  }
++  return Number(year[0]) * 12 + month;
++}
++
++/** "Oct 2025 — Nov 2025", "2020 - 2022", "2023 to Present" → { start, end } or null. */
++export function dateRange(text) {
++  if (!text || typeof text !== "string") return null;
++  const parts = text.split(/\s*(?:—|–|−|\s-\s|\bto\b|\buntil\b)\s*|(?<=\d)-(?=\d)/i).filter((part) => part && part.trim());
++  const values = parts.map(pointValue).filter((value) => value !== null);
++  if (!values.length) return null;
++  return { start: values[0], end: values[values.length - 1] };
++}
++
++/** Newest first: by end date, then start date. Undated items go last. */
++export function sortByDate(items, collection) {
++  const field = DATE_FIELDS[collection];
++  if (!field) return items.slice();
++  return items
++    .map((item, index) => ({ item, index, range: dateRange(String(item[field] ?? "")) }))
++    .sort((a, b) => {
++      if (!a.range || !b.range) return (a.range ? -1 : b.range ? 1 : 0) || a.index - b.index;
++      return b.range.end - a.range.end || b.range.start - a.range.start || a.index - b.index;
++    })
++    .map(({ item }) => item);
++}
++
++const hasOrder = (item) => Number.isFinite(item?.order);
++
++/** Saved manual order wins; otherwise dated collections are newest first. */
++export function applyOrder(items, collection) {
++  if (!Array.isArray(items)) return [];
++  if (items.some(hasOrder)) {
++    return items
++      .map((item, index) => ({ item, index }))
++      .sort((a, b) => {
++        if (hasOrder(a.item) && hasOrder(b.item)) return a.item.order - b.item.order || a.index - b.index;
++        if (hasOrder(a.item)) return -1;
++        if (hasOrder(b.item)) return 1;
++        return a.index - b.index;
++      })
++      .map(({ item }) => item);
++  }
++  return DATE_FIELDS[collection] ? sortByDate(items, collection) : items.slice();
++}
